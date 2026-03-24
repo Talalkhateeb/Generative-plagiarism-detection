@@ -1,0 +1,46 @@
+# ── Python / Django ───────────────────────────────────────────
+pycache/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Database — never commit this
+db.sqlite3
+
+# Environment & secrets
+.env
+.env.*
+*.env
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Django collected static & media uploads
+staticfiles/
+media/
+
+# ── Node / React ──────────────────────────────────────────────
+node_modules/
+dist/
+build/
+.cache/
+
+# Vite
+*.local
+
+# ── OS files ──────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDE ───────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
