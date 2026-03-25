@@ -1,0 +1,8 @@
+qdrant-client
+sentence-transformers
+nltk
+fastapi
+uvicorn
+pdfplumber
+python-docx
+python-multipart
