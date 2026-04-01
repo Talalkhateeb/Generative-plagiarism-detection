@@ -36,12 +36,12 @@ def _analyze_one_document(document, sources):
       ],
       'highlighted_text': str   (optional)
     }
-    ── REAL AI CALL will look something like: ───────────────────
-      response = ai_client.analyze(
+    ── REAL AI CALL will look something like: ───────────────────"""
+    response = ai_client.analyze(
           document_path=document.file.path,
           source_paths=[s.file.path for s in sources],
       )
-      return response
+    return response
     """
     time.sleep(1)   # simulate processing time — remove in production
 
@@ -75,7 +75,7 @@ def _analyze_one_document(document, sources):
             'The following passages were identified as potentially plagiarised. '
             'Please review the matched sources for details.'
         ),
-    }
+    }"""
 
 
 from celery import shared_task

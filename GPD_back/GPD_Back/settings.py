@@ -147,7 +147,7 @@ CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",    # React dev server
     "http://127.0.0.1:3000",
-    "https://veritas-ai.example.com",  # Production URL
+    "https://GPD.example.com",  # Production URL
 ]
 
 CORS_ALLOW_CREDENTIALS = True
