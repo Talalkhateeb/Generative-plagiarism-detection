@@ -1,5 +1,5 @@
 import type { Workspace } from '@/types'
-import { MOCK_WORKSPACES } from './mockData'
+//import { MOCK_WORKSPACES } from './mockData'
 
 // IDs of demo accounts that have pre-seeded data
 const DEMO_USER_IDS = [1, 2] // admin@veritas.ai (id:1), user@veritas.ai (id:2)
@@ -14,9 +14,9 @@ export function getWorkspaces(userId: number): Workspace[] {
       try { return JSON.parse(stored) } catch (_) {}
     }
     // First time: seed with mock data
-    const seeded = userId === 2 ? MOCK_WORKSPACES : [] // only user@veritas.ai gets mock workspaces
+   /* const seeded = userId === 2 ? MOCK_WORKSPACES : [] // only user@veritas.ai gets mock workspaces
     saveWorkspaces(userId, seeded)
-    return seeded
+    return seeded*/
   }
   // New / real users: start empty
   const stored = localStorage.getItem(STORAGE_KEY(userId))
