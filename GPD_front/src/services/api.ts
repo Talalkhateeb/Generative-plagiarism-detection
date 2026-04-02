@@ -64,6 +64,9 @@ export const authAPI = {
   updateMe:       (data: { name?: string; email?: string }) => api.patch('/auth/me/', data),
   changePassword: (data: { current_password: string; new_password: string; confirm_password: string }) =>
     api.post('/auth/change-password/', data),
+
+  deleteAccount: (password: string) =>
+    api.delete('/auth/me/delete/', { data: { password } }),
 }
 
 // ── Plans ─────────────────────────────────────────────────────────────────────

@@ -98,6 +98,25 @@ function SubmissionRow({ h, onOpen }: { h: any; onOpen: () => void }) {
                   ))}
                 </div>
               )}
+              {/* Highlighted plagiarised paragraphs */}
+              {r.highlighted_segments?.filter((s:any) => s.highlight).length > 0 && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Plagiarised Paragraphs
+                  </p>
+                  {r.highlighted_segments.filter((s:any) => s.highlight).map((seg:any, i:number) => (
+                    <div key={i} className="rounded-lg border-l-4 border-amber-400 bg-amber-400/10 p-2.5">
+                      <div className="flex justify-between mb-1">
+                        <span className="text-xs font-semibold text-amber-500 truncate pr-2">{seg.source}</span>
+                        {seg.match_percentage && (
+                          <span className="text-xs font-mono text-amber-500">{seg.match_percentage}%</span>
+                        )}
+                      </div>
+                      <p className="text-xs leading-5 text-foreground/80">{seg.text}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>

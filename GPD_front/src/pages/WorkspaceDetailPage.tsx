@@ -80,22 +80,30 @@ function DocumentResultCard({ result }: { result: DocumentResult }) {
             </div>
           </div>
 
-          {result.highlighted_segments.length > 0 && (
+          {result.highlighted_segments.filter((s:any) => s.highlight).length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Content Analysis</p>
-              <div className="text-sm leading-7 p-3 rounded-xl bg-secondary/30">
-                {result.highlighted_segments.map((seg, i) =>
-                  seg.highlight ? (
-                    <mark key={i} title={seg.source ? `Source: ${seg.source}` : undefined}
-                      className="bg-amber-400/25 border-b-2 border-amber-400/60 rounded-sm px-0.5 cursor-help"
-                      style={{ color: 'inherit' }}>{seg.text}</mark>
-                  ) : (
-                    <span key={i}>{seg.text}</span>
-                  )
-                )}
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                Plagiarised Paragraphs
+              </p>
+              <div className="space-y-3 max-h-72 overflow-y-auto">
+                {result.highlighted_segments.filter((s:any) => s.highlight).map((seg:any, i:number) => (
+                  <div key={i} className="rounded-lg border-l-4 border-amber-400 bg-amber-400/10 p-3">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-semibold text-amber-500 truncate pr-2">
+                        Matched: {seg.source ?? 'Unknown source'}
+                      </span>
+                      {seg.match_percentage && (
+                        <span className="text-xs font-mono font-bold text-amber-500 flex-shrink-0">
+                          {seg.match_percentage}%
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm leading-6 text-foreground/80">{seg.text}</p>
+                  </div>
+                ))}
               </div>
-              <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
-                <AlertTriangle size={11} /> Highlighted text indicates matched content
+              <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                <AlertTriangle size={11} /> Only plagiarised paragraphs are shown
               </p>
             </div>
           )}
