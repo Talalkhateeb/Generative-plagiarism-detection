@@ -68,11 +68,27 @@ WSGI_APPLICATION = 'GPD_Back.wsgi.application'
 
 # ── Database ─────────────────────────────────────────────────────────────────
 DATABASES = {
+    # ── SQLite (development) ──────────────────────────────────
+    # 'default': {
+    #     'ENGINE': 'django.db.backends.sqlite3',
+    #     'NAME': BASE_DIR / 'db.sqlite3',
+    # }
+
+    # ── SQL Server (production) ───────────────────────────────
+    # pip install mssql-django
+    
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'mssql',
+        'NAME': 'GPD_db',
+        'HOST': 'localhost\\SQLEXPRESS',
+        'OPTIONS': {
+            'driver': 'ODBC Driver 17 for SQL Server',
+            'trusted_connection': 'yes',
+        },
     }
-    # Production: switch to PostgreSQL:
+
+    # ── PostgreSQL (alternative) ──────────────────────────────
+    # pip install psycopg2-binary
     # 'default': {
     #     'ENGINE': 'django.db.backends.postgresql',
     #     'NAME': os.environ.get('DB_NAME', 'veritas_db'),
@@ -195,3 +211,4 @@ DEFAULT_FROM_EMAIL  = os.environ.get('DEFAULT_FROM_EMAIL', 'Veritas.AI <noreply@
 # ── AUTH_USER_MODEL: point to Account (base model) ───────────────────────────
 # Keep this as 'accounts.User' because that's what the migration named it.
 # The proxy models (User, Admin) share this table.
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'

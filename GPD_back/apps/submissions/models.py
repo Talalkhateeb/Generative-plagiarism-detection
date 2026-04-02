@@ -81,23 +81,20 @@ class Submission(models.Model):
     def send_docs(self):
         """
         Class Diagram: +send_docs(w_id, d, s, b)
-        Sequence Diagram: sends docs to message broker (RabbitMQ) → AI Model
+        Sequence Diagram: submissionMangt → RabbitMQ → AI Model
 
-        MOCK MODE (active): Returns fake AI result instantly so you can test
-        without RabbitMQ or a real AI model running.
-
-        TO SWITCH TO PRODUCTION: comment out _create_mock_result() and
-        uncomment the Celery block below.
+        MOCK MODE: comment out production block, uncomment _create_mock_result()
+        PRODUCTION: comment out mock, uncomment Celery block
         """
-        # ── MOCK MODE (use this while AI model is not ready) ──────────────────
+        # ── MOCK MODE — use while AI model is not ready ───────────────────────
         #self._create_mock_result()
 
-        # ── PRODUCTION MODE (uncomment when AI model + RabbitMQ are ready) ───
+        # ── PRODUCTION MODE — uncomment when AI model + RabbitMQ are ready ───
         from apps.results.tasks import analyze_submission
         result = analyze_submission.delay(self.id)
         self.task_id = result.id
         self.save(update_fields=['task_id'])
-'''
+
     def _create_mock_result(self):
         """
         Mock mode — called instead of Celery when AI model is not ready.
@@ -147,13 +144,13 @@ class Submission(models.Model):
         self.status = 'completed'
         self.workspace.status = 'analyzed'
         self.workspace.save(update_fields=['status'])
-        self.save(update_fields=['status'])'''
+        self.save(update_fields=['status'])
 
-'''
+
     def _generate_mock_highlighted_text(self, score):
         base = (
             'The fundamental principles explored in this paper align closely with '
             'established research in the field. The methodology demonstrates rigorous '
             'analysis and builds upon prior literature to develop novel contributions.'
         )
-        return base'''
+        return base

@@ -1,81 +1,96 @@
 """
 AI Model Integration — Celery Task
-Runs per submission. Loops over every document and produces
-an independent DocumentResult with its own score and matched sources.
 
-Flow (matches Sequence Diagram):
-  submissionMangt → MSG broker (RabbitMQ) → Celery worker (here)
+Architecture (Option B — supervisor's choice):
+  1. Files stored on Django server disk
+  2. File URLs stored in SQL DB
+  3. Only DOCUMENT ID sent via RabbitMQ to Celery
+  4. Celery calls AI Model API with file bytes (multipart)
+  5. AI Model returns score + matched sources + highlighted paragraphs
+  6. Results saved to DB
+
+Flow:
+  submissionMangt → RabbitMQ → Celery worker (here)
     → for each document:
-        AI model compares doc vs all sources
-        → plagiarism_score, matched_sources[]
+        send file bytes to AI Model API
+        → plagiarism_score, matched_sources[], highlighted_paragraphs[]
         → DocumentResult saved
     → submission.status = 'completed'
-    → workspace.status  = 'analyzed'
-
-Your partner replaces _analyze_one_document() with the real AI call.
-Everything else stays the same.
 """
 import logging
-import random
-import time
+import requests
 
 logger = logging.getLogger(__name__)
 
+# ── AI Model API config ───────────────────────────────────────────────────────
+# Set this to your partner's PC IP and port
+AI_MODEL_URL = 'http://AI_MODEL_IP:8001/analyze'
+# e.g. 'http://192.168.1.20:8001/analyze'  (same WiFi)
+# e.g. 'https://abc123.ngrok.io/analyze'   (different network)
 
-def _analyze_one_document(document, sources):
+
+def _analyze_one_document(document, sources, submission_id):
     """
-    ──  IMPLEMENTATION ──────────────────────────────────────
-    Replace this function body with the real AI model call.
+    Sends one document + all sources to the AI Model API.
+    Receives plagiarism score, matched sources, and highlighted paragraphs.
 
-    Expected return:
+    What we send (multipart/form-data):
+      - document_id   : int    → DB id of the document
+      - document_name : str    → filename e.g. "thesis.pdf"
+      - document      : file   → actual file bytes
+      - sources       : files  → list of source file bytes
+
+    What we receive (JSON):
     {
-      'plagiarism_score': float (0-100),
-      'matched_sources': [
-          {'source_id': int, 'match_percentage': float},
-          ...   ← sorted descending by match_percentage
+      "plagiarism_score": 23.5,
+      "matched_sources": [
+        {"source_name": "paper1.pdf", "match_percentage": 15.0},
+        {"source_name": "paper2.pdf", "match_percentage": 8.5}
       ],
-      'highlighted_text': str   (optional)
+      "highlighted_paragraphs": [
+        {
+          "text": "The fundamental principles...",
+          "source": "paper1.pdf",
+          "match_percentage": 15.0
+        }
+      ]
     }
-    ── REAL AI CALL will look something like: ───────────────────"""
-    response = ai_client.analyze(
-          document_path=document.file.path,
-          source_paths=[s.file.path for s in sources],
-      )
-    return response
+
+    Your partner implements the AI logic — this function just calls her API.
     """
-    time.sleep(1)   # simulate processing time — remove in production
+    try:
+        # Open document file
+        doc_file = open(document.file.path, 'rb')
 
-    # Generate a random score per document ()
-    total_score = round(random.uniform(5, 45), 1)
+        # Build multipart request
+        files = [
+            ('document', (document.name, doc_file, 'application/octet-stream')),
+        ]
+        for src in sources:
+            files.append(('sources', (src.name, open(src.file.path, 'rb'), 'application/octet-stream')))
 
-    # Distribute score across sources ()
-    matched = []
-    remaining = total_score
-    sources_list = list(sources)
-    random.shuffle(sources_list)
+        # Send metadata as form data
+        data = {
+            'document_id':   document.id,
+            'document_name': document.name,
+            'submission_id': submission_id,
+        }
 
-    for i, src in enumerate(sources_list):
-        if remaining <= 0:
-            matched.append({'source_id': src.id, 'match_percentage': 0.0})
-            continue
-        if i == len(sources_list) - 1:
-            match = round(remaining, 1)
-        else:
-            match = round(random.uniform(0.5, max(0.5, remaining * 0.6)), 1)
-        matched.append({'source_id': src.id, 'match_percentage': match})
-        remaining = round(remaining - match, 1)
+        response = requests.post(
+            AI_MODEL_URL,
+            files=files,
+            data=data,
+            timeout=120,   # 2 minutes max
+        )
+        response.raise_for_status()
+        return response.json()
 
-    # Sort most suspicious first
-    matched.sort(key=lambda x: x['match_percentage'], reverse=True)
-
-    return {
-        'plagiarism_score': total_score,
-        'matched_sources':  matched,
-        'highlighted_text': (
-            'The following passages were identified as potentially plagiarised. '
-            'Please review the matched sources for details.'
-        ),
-    }"""
+    except requests.exceptions.ConnectionError:
+        raise Exception(f'Cannot connect to AI Model at {AI_MODEL_URL}. Is it running?')
+    except requests.exceptions.Timeout:
+        raise Exception('AI Model took too long to respond (>120s)')
+    except Exception as e:
+        raise Exception(f'AI Model error: {str(e)}')
 
 
 from celery import shared_task
@@ -88,11 +103,9 @@ from apps.workspaces.models import Source
 def analyze_submission(self, submission_id: int):
     """
     UC-5: Analyze Submission using AI Model.
-    Called by send_docs() — either via Celery (production) or directly ( mode).
 
-    For each document in the submission:
-      1. Run AI analysis against all sources
-      2. Save DocumentResult with score + matched sources
+    Triggered by send_docs() via RabbitMQ.
+    For each document → calls AI Model API → saves DocumentResult.
     """
     try:
         submission = Submission.objects.select_related('workspace').get(pk=submission_id)
@@ -107,33 +120,42 @@ def analyze_submission(self, submission_id: int):
         if not sources:
             raise ValueError('No sources in submission')
 
-        # ── Analyze each document independently ────────────────────────────
         for document in documents:
-            analysis = _analyze_one_document(document, sources)
+            # Call AI Model API
+            analysis = _analyze_one_document(document, sources, submission_id)
 
-            # Create DocumentResult
+            # Save DocumentResult
             doc_result = DocumentResult.objects.create(
                 submission=submission,
                 workspace=submission.workspace,
                 document=document,
                 plagiarism_score=analysis['plagiarism_score'],
                 original_percentage=round(100 - analysis['plagiarism_score'], 1),
-                highlighted_text=analysis.get('highlighted_text', ''),
+                highlighted_text='',
+                # Store highlighted paragraphs as JSON for frontend
+                segments_json=_build_segments(analysis),
             )
 
-            # Save matched sources (already sorted most suspicious first)
-            for ms_data in analysis['matched_sources']:
-                try:
-                    source = Source.objects.get(pk=ms_data['source_id'])
+            # Save matched sources sorted by match % descending
+            matched = sorted(
+                analysis.get('matched_sources', []),
+                key=lambda x: x['match_percentage'],
+                reverse=True
+            )
+            for ms in matched:
+                # Find source by name
+                source = next(
+                    (s for s in sources if s.name == ms['source_name']),
+                    None
+                )
+                if source:
                     MatchedSource.objects.create(
                         result=doc_result,
                         source=source,
-                        match_percentage=ms_data['match_percentage'],
+                        match_percentage=ms['match_percentage'],
                     )
-                except Source.DoesNotExist:
-                    continue
 
-        # ── Mark submission and workspace complete ─────────────────────────
+        # Mark complete
         submission.status = 'completed'
         submission.workspace.status = 'analyzed'
         submission.workspace.save(update_fields=['status'])
@@ -149,3 +171,25 @@ def analyze_submission(self, submission_id: int):
         except Exception:
             pass
         raise self.retry(exc=exc, countdown=60)
+
+
+def _build_segments(analysis):
+    """
+    Converts AI model highlighted_paragraphs into frontend segments format.
+    Each highlighted paragraph shows which source it matched.
+
+    Frontend renders these as highlighted blocks — not the full document.
+    """
+    paragraphs = analysis.get('highlighted_paragraphs', [])
+    if not paragraphs:
+        return [{'text': 'Analysis complete. See matched sources above.', 'highlight': False}]
+
+    segments = []
+    for p in paragraphs:
+        segments.append({
+            'text':             p.get('text', ''),
+            'highlight':        True,
+            'source':           p.get('source', ''),
+            'match_percentage': p.get('match_percentage', 0),
+        })
+    return segments

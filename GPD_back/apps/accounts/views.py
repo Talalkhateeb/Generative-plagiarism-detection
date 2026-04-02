@@ -199,3 +199,28 @@ class ChangePasswordView(APIView):
         request.user.set_password(serializer.validated_data['new_password'])
         request.user.save()
         return Response({'message': 'Password changed successfully.'})
+
+
+class DeleteAccountView(APIView):
+    """
+    DELETE /api/auth/me/delete/
+    User deletes their own account.
+    Requires password confirmation for security.
+    Body: { password: string }
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser]
+
+    def delete(self, request):
+        password = request.data.get('password')
+        if not password:
+            return Response(
+                {'error': 'Password is required to delete your account.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if not request.user.check_password(password):
+            return Response(
+                {'error': 'Incorrect password.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        request.user.delete()
+        return Response({'message': 'Account deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
