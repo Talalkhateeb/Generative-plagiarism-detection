@@ -86,71 +86,8 @@ class Submission(models.Model):
         MOCK MODE: comment out production block, uncomment _create_mock_result()
         PRODUCTION: comment out mock, uncomment Celery block
         """
-        # ── MOCK MODE — use while AI model is not ready ───────────────────────
-        #self._create_mock_result()
 
-        # ── PRODUCTION MODE — uncomment when AI model + RabbitMQ are ready ───
         from apps.results.tasks import analyze_submission
         result = analyze_submission.delay(self.id)
         self.task_id = result.id
         self.save(update_fields=['task_id'])
-
-    def _create_mock_result(self):
-        """
-        Mock mode — called instead of Celery when AI model is not ready.
-        Creates one DocumentResult per document, each with its own
-        plagiarism score and ranked matched sources.
-        """
-        from apps.results.models import DocumentResult, MatchedSource
-        import random
-
-        documents = list(self.documents.all())
-        sources   = list(self.sources.all())
-
-        for document in documents:
-            score = round(random.uniform(5, 45), 1)
-
-            doc_result = DocumentResult.objects.create(
-                submission=self,
-                workspace=self.workspace,
-                document=document,
-                plagiarism_score=score,
-                original_percentage=round(100 - score, 1),
-                highlighted_text=self._generate_mock_highlighted_text(score),
-            )
-
-            # Distribute score across sources — sorted most suspicious first
-            remaining = score
-            shuffled = sources[:]
-            random.shuffle(shuffled)
-            matches = []
-            for i, src in enumerate(shuffled):
-                if remaining <= 0:
-                    matches.append((src, 0.0))
-                    continue
-                if i == len(shuffled) - 1:
-                    match = round(remaining, 1)
-                else:
-                    match = round(random.uniform(0.5, max(0.5, remaining * 0.6)), 1)
-                matches.append((src, match))
-                remaining = round(remaining - match, 1)
-
-            # Save sorted by match desc (most suspicious first)
-            for src, match in sorted(matches, key=lambda x: x[1], reverse=True):
-                MatchedSource.objects.create(
-                    result=doc_result, source=src, match_percentage=match
-                )
-
-        self.status = 'completed'
-        self.workspace.status = 'analyzed'
-        self.workspace.save(update_fields=['status'])
-        self.save(update_fields=['status'])
-
-
-    def _generate_mock_highlighted_text(self, score):
-        base = (
-            'The fundamental principles explored in this paper align closely with '
-            'established research in the field. The methodology demonstrates rigorous '
-            'analysis and builds upon prior literature to develop novel contributions.'
-        )
-        return base

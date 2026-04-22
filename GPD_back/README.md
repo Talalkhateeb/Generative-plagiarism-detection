@@ -119,7 +119,7 @@ const { data } = await api.post(`/workspaces/${id}/submit/`, {
 GPD_backend/
 ├── manage.py
 ├── requirements.txt
-├── seed_data.py
+├── seed_data.py (moved)
 ├── GPD_project/
 │   ├── settings.py       ← JWT, CORS, REST_FRAMEWORK config
 │   └── urls.py           ← Main URL routing

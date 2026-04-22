@@ -6,7 +6,6 @@
  */
 import { createContext, useContext, useState, useEffect } from 'react'
 import type { User } from '@/types'
-//import { MOCK_ACCOUNTS } from '@/utils/mockData'
 import { authAPI } from '@/services/api'
 
 interface AuthCtx {
@@ -76,12 +75,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) =>  {
       await authAPI.sendOTP(name, email, password, password, planId)
       return { success: true }
     } catch (apiErr: any) {
-      // Mock fallback (no server)
-      /*if (!apiErr.response) {
-        if (MOCK_ACCOUNTS.find(u => u.email === email))
-          return { success: false, message: 'Email already in use' }
-        return { success: true }   // pretend OTP was sent
-      }*/
       const errors = apiErr.response?.data
       const msg = errors?.email?.[0]
         || errors?.password?.[0]
@@ -103,16 +96,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) =>  {
       saveUser(u); setUser(u)
       return { success: true }
     } catch (apiErr: any) {
-      // Mock fallback: accept any 6-digit code
-     /* if (!apiErr.response) {
-        const newUser: User = {
-          id: Date.now(), name, email,
-          role: 'user', plan: 'Pro',
-          status: 'active', date_joined: new Date().toISOString().split('T')[0],
-        }
-        saveUser(newUser); setUser(newUser)
-        return { success: true }
-      }*/
       const errors = apiErr.response?.data
       const msg = errors?.otp_code?.[0]
         || errors?.non_field_errors?.[0]
@@ -128,7 +111,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) =>  {
       await authAPI.resendOTP(name, email, password, planId)
       return { success: true }
     } catch (apiErr: any) {
-      /*if (!apiErr.response) return { success: true }  // mock*/
       return { success: false, message: 'Failed to resend code' }
     }
   }
