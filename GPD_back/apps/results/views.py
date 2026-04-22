@@ -130,7 +130,7 @@ class ReportDownloadView(APIView):
                 json.dumps(report, indent=2),
                 content_type='application/json'
             )
-            response['Content-Disposition'] = f'attachment; filename="veritas-report-{ws.id}.json"'
+            response['Content-Disposition'] = f'attachment; filename="GPD-report-{ws.id}.json"'
             return response
 
         return Response(report)

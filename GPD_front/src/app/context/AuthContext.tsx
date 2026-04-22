@@ -22,9 +22,9 @@ interface AuthCtx {
 
 const AuthContext = createContext<AuthCtx>({} as AuthCtx)
 
-const saveUser  = (user: User) => localStorage.setItem('veritas_user', JSON.stringify(user))
+const saveUser  = (user: User) => localStorage.setItem('GPD_user', JSON.stringify(user))
 const clearAuth = () => {
-  localStorage.removeItem('veritas_user')
+  localStorage.removeItem('GPD_user')
   localStorage.removeItem('access_token')
   localStorage.removeItem('refresh_token')
 }
@@ -44,7 +44,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) =>  {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const stored = localStorage.getItem('veritas_user')
+    const stored = localStorage.getItem('GPD_user')
     const token  = localStorage.getItem('access_token')
     if (stored && token) {
       try { setUser(JSON.parse(stored)) } catch (_) {}

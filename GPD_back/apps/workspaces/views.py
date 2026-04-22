@@ -107,7 +107,9 @@ class SourceDeleteView(WorkspaceMixin, APIView):
     def delete(self, request, pk, src_id):
         ws = self.get_user_workspace(pk)
         source = get_object_or_404(Source, pk=src_id, workspace=ws)
-        source.file.delete(save=False)
+        # Delete from MinIO storage
+        from minio_client import delete_file
+        delete_file(source.file_key)
         source.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -152,6 +154,8 @@ class DocumentDeleteView(WorkspaceMixin, APIView):
     def delete(self, request, pk, doc_id):
         ws = self.get_user_workspace(pk)
         doc = get_object_or_404(Document, pk=doc_id, workspace=ws)
-        doc.file.delete(save=False)
+        # Delete from MinIO storage
+        from minio_client import delete_file
+        delete_file(doc.file_key)
         doc.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

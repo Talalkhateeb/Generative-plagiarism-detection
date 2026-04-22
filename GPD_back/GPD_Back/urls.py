@@ -1,5 +1,5 @@
 """
-Veritas.AI — Main URL Configuration
+GPD.AI — Main URL Configuration
 
 URL Structure:
   POST   /api/auth/register/            → Register new user (with plan)

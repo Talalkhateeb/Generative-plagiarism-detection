@@ -1,96 +1,104 @@
 """
 AI Model Integration — Celery Task
+===================================
+New flow with Storage Microservice:
 
-Architecture (Option B — supervisor's choice):
-  1. Files stored on Django server disk
-  2. File URLs stored in SQL DB
-  3. Only DOCUMENT ID sent via RabbitMQ to Celery
-  4. Celery calls AI Model API with file bytes (multipart)
-  5. AI Model returns score + matched sources + highlighted paragraphs
-  6. Results saved to DB
-
-Flow:
-  submissionMangt → RabbitMQ → Celery worker (here)
-    → for each document:
-        send file bytes to AI Model API
-        → plagiarism_score, matched_sources[], highlighted_paragraphs[]
-        → DocumentResult saved
-    → submission.status = 'completed'
+  1. Django stores files in MinIO via Storage Service
+  2. SQL DB stores only file_key (MinIO path)
+  3. Celery sends workspace_id + doc_ids + source_ids to AI via RabbitMQ
+  4. AI fetches files from MinIO using presigned URLs
+  5. AI stores results back in MinIO via Storage Service POST /result
+  6. Celery polls Storage Service GET /result until ready
+  7. Celery saves result to SQL DB
 """
 import logging
+import time
 import requests
 
 logger = logging.getLogger(__name__)
+from django.conf import settings
 
-# ── AI Model API config ───────────────────────────────────────────────────────
-# Set this to your partner's PC IP and port
-AI_MODEL_URL = 'http://AI_MODEL_IP:8001/analyze'
-# e.g. 'http://192.168.1.20:8001/analyze'  (same WiFi)
-# e.g. 'https://abc123.ngrok.io/analyze'   (different network)
+AI_MODEL_URL = settings.AI_MODEL_URL
+STORAGE_URL  = settings.STORAGE_SERVICE_URL
+POLL_INTERVAL    = 3     # seconds between polls
+POLL_MAX_RETRIES = 40    # 40 × 3s = 2 minutes max wait
 
 
-def _analyze_one_document(document, sources, submission_id):
+def _get_presigned_url(file_key: str) -> str:
+    """Get a presigned download URL from storage service."""
+    r = requests.get(f"{STORAGE_URL}/file/{file_key}", params={"expires_minutes": 120})
+    r.raise_for_status()
+    return r.json()["url"]
+
+
+def _send_to_ai(submission_id: int, document, sources) -> bool:
     """
-    Sends one document + all sources to the AI Model API.
-    Receives plagiarism score, matched sources, and highlighted paragraphs.
-
-    What we send (multipart/form-data):
-      - document_id   : int    → DB id of the document
-      - document_name : str    → filename e.g. "thesis.pdf"
-      - document      : file   → actual file bytes
-      - sources       : files  → list of source file bytes
-
-    What we receive (JSON):
-    {
-      "plagiarism_score": 23.5,
-      "matched_sources": [
-        {"source_name": "paper1.pdf", "match_percentage": 15.0},
-        {"source_name": "paper2.pdf", "match_percentage": 8.5}
-      ],
-      "highlighted_paragraphs": [
-        {
-          "text": "The fundamental principles...",
-          "source": "paper1.pdf",
-          "match_percentage": 15.0
-        }
-      ]
+    Send analysis request to AI Model.
+    Sends: workspace_id, doc id, source ids, and presigned URLs.
+    AI fetches files from MinIO directly — no file bytes sent here.
+    Returns True if AI accepted the request.
+    """
+    payload = {
+        "submission_id":  submission_id,
+        "document_id":    document.id,
+        "document_name":  document.name,
+        "document_url":   _get_presigned_url(document.file_key),
+        "sources": [
+            {
+                "source_id":   s.id,
+                "source_name": s.name,
+                "source_url":  _get_presigned_url(s.file_key),
+            }
+            for s in sources
+        ],
+        # Where AI should POST the result when done
+        "result_callback_url": f"{STORAGE_URL}/result",
     }
 
-    Your partner implements the AI logic — this function just calls her API.
+    r = requests.post(AI_MODEL_URL, json=payload, timeout=30)
+    r.raise_for_status()
+    return True
+
+
+def _poll_result(submission_id: int, document_id: int) -> dict:
     """
-    try:
-        # Open document file
-        doc_file = open(document.file.path, 'rb')
+    Poll storage service until AI model posts the result.
+    Returns result dict when ready.
+    Raises TimeoutError if not ready after POLL_MAX_RETRIES.
+    """
+    for attempt in range(POLL_MAX_RETRIES):
+        try:
+            r = requests.get(
+                f"{STORAGE_URL}/result/{submission_id}/{document_id}",
+                timeout=10
+            )
+            if r.status_code == 200:
+                return r.json()
+            # 404 means not ready yet — keep polling
+        except Exception:
+            pass
+        time.sleep(POLL_INTERVAL)
 
-        # Build multipart request
-        files = [
-            ('document', (document.name, doc_file, 'application/octet-stream')),
-        ]
-        for src in sources:
-            files.append(('sources', (src.name, open(src.file.path, 'rb'), 'application/octet-stream')))
+    raise TimeoutError(
+        f"Result not available after {POLL_MAX_RETRIES * POLL_INTERVAL}s "
+        f"for submission {submission_id}, document {document_id}"
+    )
 
-        # Send metadata as form data
-        data = {
-            'document_id':   document.id,
-            'document_name': document.name,
-            'submission_id': submission_id,
+
+def _build_segments(analysis: dict) -> list:
+    """Convert AI highlighted_paragraphs to frontend segments format."""
+    paragraphs = analysis.get('highlighted_paragraphs', [])
+    if not paragraphs:
+        return [{'text': 'Analysis complete. See matched sources above.', 'highlight': False}]
+    return [
+        {
+            'text':             p.get('text', ''),
+            'highlight':        True,
+            'source':           p.get('source', ''),
+            'match_percentage': p.get('match_percentage', 0),
         }
-
-        response = requests.post(
-            AI_MODEL_URL,
-            files=files,
-            data=data,
-            timeout=120,   # 2 minutes max
-        )
-        response.raise_for_status()
-        return response.json()
-
-    except requests.exceptions.ConnectionError:
-        raise Exception(f'Cannot connect to AI Model at {AI_MODEL_URL}. Is it running?')
-    except requests.exceptions.Timeout:
-        raise Exception('AI Model took too long to respond (>120s)')
-    except Exception as e:
-        raise Exception(f'AI Model error: {str(e)}')
+        for p in paragraphs
+    ]
 
 
 from celery import shared_task
@@ -103,9 +111,12 @@ from apps.workspaces.models import Source
 def analyze_submission(self, submission_id: int):
     """
     UC-5: Analyze Submission using AI Model.
+    Triggered by RabbitMQ via send_docs().
 
-    Triggered by send_docs() via RabbitMQ.
-    For each document → calls AI Model API → saves DocumentResult.
+    For each document:
+      1. Send doc + source URLs to AI Model
+      2. Poll storage service for result
+      3. Save DocumentResult to SQL DB
     """
     try:
         submission = Submission.objects.select_related('workspace').get(pk=submission_id)
@@ -121,10 +132,13 @@ def analyze_submission(self, submission_id: int):
             raise ValueError('No sources in submission')
 
         for document in documents:
-            # Call AI Model API
-            analysis = _analyze_one_document(document, sources, submission_id)
+            # Step 1: send to AI model (AI fetches files from MinIO)
+            _send_to_ai(submission_id, document, sources)
 
-            # Save DocumentResult
+            # Step 2: poll until AI posts result to storage service
+            analysis = _poll_result(submission_id, document.id)
+
+            # Step 3: save result to SQL DB
             doc_result = DocumentResult.objects.create(
                 submission=submission,
                 workspace=submission.workspace,
@@ -132,7 +146,6 @@ def analyze_submission(self, submission_id: int):
                 plagiarism_score=analysis['plagiarism_score'],
                 original_percentage=round(100 - analysis['plagiarism_score'], 1),
                 highlighted_text='',
-                # Store highlighted paragraphs as JSON for frontend
                 segments_json=_build_segments(analysis),
             )
 
@@ -143,11 +156,7 @@ def analyze_submission(self, submission_id: int):
                 reverse=True
             )
             for ms in matched:
-                # Find source by name
-                source = next(
-                    (s for s in sources if s.name == ms['source_name']),
-                    None
-                )
+                source = next((s for s in sources if s.name == ms['source_name']), None)
                 if source:
                     MatchedSource.objects.create(
                         result=doc_result,
@@ -171,25 +180,3 @@ def analyze_submission(self, submission_id: int):
         except Exception:
             pass
         raise self.retry(exc=exc, countdown=60)
-
-
-def _build_segments(analysis):
-    """
-    Converts AI model highlighted_paragraphs into frontend segments format.
-    Each highlighted paragraph shows which source it matched.
-
-    Frontend renders these as highlighted blocks — not the full document.
-    """
-    paragraphs = analysis.get('highlighted_paragraphs', [])
-    if not paragraphs:
-        return [{'text': 'Analysis complete. See matched sources above.', 'highlight': False}]
-
-    segments = []
-    for p in paragraphs:
-        segments.append({
-            'text':             p.get('text', ''),
-            'highlight':        True,
-            'source':           p.get('source', ''),
-            'match_percentage': p.get('match_percentage', 0),
-        })
-    return segments

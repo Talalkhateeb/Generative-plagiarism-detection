@@ -120,7 +120,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         super().save(*args, **kwargs)
 
     def choose_plan(self, plan_id):
-        from apps.plans.models import Plan
+        from plans.models import Plan
         self.plan = Plan.objects.get(pk=plan_id)
         self.save(update_fields=['plan'])
 
@@ -139,9 +139,10 @@ class Admin(User):
     objects = AdminRoleManager()
 
     class Meta:
-        proxy        = True
+        proxy        = True 
+        managed = False  
         verbose_name = 'Admin'
-
+        app_label = 'accounts' 
     def edit_ustate(self, account_id, new_status):
         User.objects.filter(pk=account_id).update(
             status=new_status,
@@ -166,8 +167,14 @@ class OTPVerification(models.Model):
 
     def __str__(self):
         return f'OTP for {self.email} — used={self.is_used}'
-
     def is_expired(self):
-        from django.utils import timezone
-        from datetime import timedelta
-        return timezone.now() > self.created_at + timedelta(minutes=10)
+     from django.utils import timezone
+     from datetime import timedelta
+     # Ensure both sides are timezone-aware
+     now = timezone.now()
+     created = self.created_at
+    # Safety: if created_at is naive (MSSQL issue), make it aware
+     if created.tzinfo is None:
+        from django.utils.timezone import make_aware
+        created = make_aware(created)
+     return now > created + timedelta(minutes=10)

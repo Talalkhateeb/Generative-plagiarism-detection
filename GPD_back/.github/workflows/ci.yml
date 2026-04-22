@@ -1,0 +1,302 @@
+name: GPD.AI — CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# ── Environment variables available to all jobs ───────────────────────────────
+env:
+  PYTHON_VERSION: "3.11"
+  DJANGO_SETTINGS_MODULE: GPD_Back.settings
+
+jobs:
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # JOB 1 — SECRET SCANNING (GitLeaks)
+  # Runs first. If secrets are found in code, we stop the pipeline immediately.
+  # ════════════════════════════════════════════════════════════════════════════
+  secret-scan:
+    name: 🔐 Secret Scan (GitLeaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so GitLeaks can scan all commits
+
+      - name: Run GitLeaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # GitLeaks will exit with code 1 if any secrets are detected,
+        # which automatically fails this job and blocks the next jobs.
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # JOB 2 — UNIT & INTEGRATION TESTS
+  # Uses SQLite in-memory for fast, isolated test runs.
+  # ════════════════════════════════════════════════════════════════════════════
+  test:
+    name: 🧪 Unit & Integration Tests
+    runs-on: ubuntu-latest
+    needs: secret-scan    # only runs if no secrets were found
+
+    services:
+      # Spin up a real PostgreSQL to match production (optional — remove if using SQLite)
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: gpd_test
+          POSTGRES_USER: gpd
+          POSTGRES_PASSWORD: testpass
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-django pytest-cov
+
+      - name: Create .env file for CI
+        run: |
+          cat > .env << EOF
+          SECRET_KEY=ci-test-secret-key-not-for-production
+          DEBUG=True
+          ALLOWED_HOSTS=localhost,127.0.0.1
+          DB_ENGINE=django.db.backends.sqlite3
+          DB_NAME=:memory:
+          EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+          MINIO_ENDPOINT=localhost:9000
+          MINIO_ACCESS_KEY=minioadmin
+          MINIO_SECRET_KEY=minioadmin
+          MINIO_BUCKET=gpd-test
+          CELERY_BROKER_URL=memory://
+          EOF
+
+      - name: Run database migrations
+        run: python manage.py migrate --run-syncdb
+
+      - name: Run Unit Tests
+        run: |
+          pytest tests/test_unit.py -v \
+            --cov=apps \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            -m "not e2e and not performance"
+
+      - name: Run Integration Tests
+        run: |
+          pytest tests/test_integration.py -v \
+            --cov=apps \
+            --cov-append \
+            --cov-report=term-missing \
+            -m "not e2e and not performance"
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage.xml
+          flags: unittests
+          fail_ci_if_error: false   # don't break CI on coverage upload issues
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # JOB 3 — E2E TESTS (Playwright)
+  # Spins up the Django backend + expects a running frontend.
+  # In CI we start the backend; E2E tests point to a staging URL or
+  # a locally started frontend (change BASE_URL below as needed).
+  # ════════════════════════════════════════════════════════════════════════════
+  e2e:
+    name: 🎭 E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+    needs: test   # only run after unit/integration pass
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install backend dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright + browsers
+        run: |
+          pip install pytest-playwright
+          playwright install chromium --with-deps
+
+      - name: Create .env for E2E
+        run: |
+          cat > .env << EOF
+          SECRET_KEY=ci-e2e-secret-key
+          DEBUG=True
+          ALLOWED_HOSTS=localhost,127.0.0.1
+          DB_ENGINE=django.db.backends.sqlite3
+          DB_NAME=/tmp/gpd_e2e.db
+          EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+          CELERY_BROKER_URL=memory://
+          EOF
+
+      - name: Prepare E2E database (seed test users)
+        run: |
+          python manage.py migrate --run-syncdb
+          python manage.py shell -c "
+          from apps.accounts.models import User
+          from apps.plans.models import Plan
+          plan, _ = Plan.objects.get_or_create(
+              name='Perf', defaults={'price': 9, 'checks_per_month': 100}
+          )
+          for i in range(1, 4):
+              User.objects.get_or_create(
+                  email=f'perf_user{i}@gpd.com',
+                  defaults={'name': f'Perf User {i}', 'plan': plan}
+              )[0].set_password('TestPass123!') or \
+              User.objects.get(email=f'perf_user{i}@gpd.com').save()
+          print('Seed complete')
+          "
+
+      - name: Start Django backend
+        run: |
+          python manage.py runserver 0.0.0.0:8000 &
+          # بدلاً من sleep 3
+        echo "Waiting for Django to start..."
+        until curl -s http://localhost:8000; do
+        sleep 1
+        done
+        echo "Django is up!"   # give Django time to start
+        env:
+          DJANGO_SETTINGS_MODULE: GPD_Back.settings
+
+      - name: Run Playwright E2E Tests
+        run: |
+          pytest tests/test_e2e.py -v \
+            --base-url http://localhost:3000 \
+            -m e2e
+        env:
+          BASE_URL: http://localhost:3000
+        continue-on-error: true   # frontend may not be running in all CI environments
+
+      - name: Upload Playwright traces on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # JOB 4 — PERFORMANCE TEST (Locust, headless, short smoke run)
+  # Only runs on pushes to main to keep PRs fast.
+  # ════════════════════════════════════════════════════════════════════════════
+  performance:
+    name: ⚡ Performance Smoke Test (Locust)
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'   # only on main branch
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt locust
+
+      - name: Create .env for performance test
+        run: |
+          cat > .env << EOF
+          SECRET_KEY=ci-perf-secret-key
+          DEBUG=False
+          ALLOWED_HOSTS=*
+          DB_ENGINE=django.db.backends.sqlite3
+          DB_NAME=/tmp/gpd_perf.db
+          EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+          CELERY_BROKER_URL=memory://
+          EOF
+
+      - name: Prepare performance DB
+        run: |
+          python manage.py migrate --run-syncdb
+          python manage.py shell -c "
+          from apps.accounts.models import User
+          from apps.plans.models import Plan
+          plan, _ = Plan.objects.get_or_create(
+              name='Perf', defaults={'price': 9, 'checks_per_month': 100}
+          )
+          for i in range(1, 4):
+              u, created = User.objects.get_or_create(
+                  email=f'perf_user{i}@gpd.com',
+                  defaults={'name': f'Perf User {i}', 'plan': plan}
+              )
+              u.set_password('TestPass123!')
+              u.save()
+          "
+
+      - name: Start Django for performance test
+        run: |
+          python manage.py runserver 0.0.0.0:8000 &
+          sleep 3
+
+      - name: Run Locust (headless, 5 users, 30 seconds)
+        run: |
+          mkdir -p results
+          locust -f tests/test_performance.py \
+            --headless \
+            -u 5 -r 1 \
+            --run-time 30s \
+            --host http://localhost:8000 \
+            --html results/performance_report.html \
+            --csv results/performance
+
+      - name: Upload performance report
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-report
+          path: results/
+          retention-days: 30
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # JOB 5 — DEPLOY (placeholder)
+  # Only triggers on main after all tests pass.
+  # ════════════════════════════════════════════════════════════════════════════
+  deploy:
+    name: 🚀 Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [test, e2e]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy
+        run: |
+          echo "✅ All tests passed."
+          echo "🚀 Deploying GPD.AI to staging..."
+          echo "   (Replace this step with your actual deploy command)"
+          echo "   e.g.: ssh user@server 'cd /app && git pull && docker-compose up -d'"
+          echo "Deploying to staging... done ✅"

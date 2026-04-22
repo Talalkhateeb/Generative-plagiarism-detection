@@ -6,7 +6,6 @@ from rest_framework import serializers
 from .models import User, Admin, Account, OTPVerification
 import random, string
 
-
 def generate_otp():
     return ''.join(random.choices(string.digits, k=6))
 
@@ -43,10 +42,10 @@ class SendOTPSerializer(serializers.Serializer):
         from django.core.mail import send_mail
         from django.conf import settings
 
-        email = self.validated_data['email']
+        email = self.validated_data['email'].strip().lower()  # normalize
 
         # Invalidate any previous unused OTPs for this email
-        OTPVerification.objects.filter(email=email, is_used=False).update(is_used=True)
+        OTPVerification.objects.filter(email__iexact=email, is_used=False).update(is_used=True)
 
         code = generate_otp()
         OTPVerification.objects.create(email=email, code=code)
@@ -78,12 +77,13 @@ class VerifyOTPAndRegisterSerializer(serializers.Serializer):
     otp_code = serializers.CharField(max_length=6, min_length=6)
 
     def validate(self, data):
-        email    = data['email']
-        otp_code = data['otp_code']
+        email    = data['email'].strip().lower()
+        otp_code = data['otp_code'].strip()
+        data['email'] = email  # normalize for create_user too
 
         # Find the latest unused OTP for this email
         otp = OTPVerification.objects.filter(
-            email=email, code=otp_code, is_used=False
+            email__iexact=email, code=otp_code, is_used=False
         ).order_by('-created_at').first()
 
         if not otp:
@@ -114,7 +114,42 @@ class VerifyOTPAndRegisterSerializer(serializers.Serializer):
             is_email_verified=True,
         )
         return account
+    
+class ResendOTPSerializer(serializers.Serializer):
+     """Same as SendOTPSerializer but skips the email-exists check — used for resend."""
+     name             = serializers.CharField(max_length=150)
+     email            = serializers.EmailField()
+     password         = serializers.CharField(write_only=True)
+     confirm_password = serializers.CharField(write_only=True)
+     plan_id          = serializers.IntegerField()
 
+     def validate(self, data):
+        if data['password'] != data.pop('confirm_password', data['password']):
+            raise serializers.ValidationError({'confirm_password': 'Passwords do not match.'})
+        return data
+
+     def send_otp(self):
+        from django.core.mail import send_mail
+        from django.conf import settings
+
+        email = self.validated_data['email'].strip().lower()  # normalize
+        OTPVerification.objects.filter(email__iexact=email, is_used=False).update(is_used=True)
+        code = generate_otp()
+        OTPVerification.objects.create(email=email, code=code)
+
+        send_mail(
+            subject='Your GPD Verification Code',
+            message=(
+                f'Hi {self.validated_data["name"]},\n\n'
+                f'Your new verification code is: {code}\n\n'
+                f'This code expires in 10 minutes.\n\n'
+                f'If you did not sign up for GPD, please ignore this email.'
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=False,
+        )
+        return code
 
 # ── Profile serializers ───────────────────────────────────────────────────────
 

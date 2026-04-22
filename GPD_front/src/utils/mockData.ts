@@ -3,7 +3,7 @@ import type { Workspace, Plan, User } from '@/types'
 // Only pre-existing demo accounts have workspaces
 // New registered users start with an empty workspace list
 export const MOCK_WORKSPACES_BY_USER: Record<number, Workspace[]> = {
-  // user id=2 (Jordan Lee — user@veritas.ai) has sample workspaces
+  // user id=2 (Jordan Lee — user@GPD.ai) has sample workspaces
   2: [
     {
       id: 1, name: 'Research Paper Q1', created_at: '2026-02-10',
@@ -71,7 +71,7 @@ export const MOCK_PLANS: Plan[] = [
 ]
 
 export const MOCK_ACCOUNTS: (User & { password: string })[] = [
-  { id: 1, name: 'Alex Morgan', email: 'admin@veritas.ai', password: 'admin123', role: 'admin', plan: 'Enterprise', status: 'active',   date_joined: '2025-01-15' },
-  { id: 2, name: 'Jordan Lee',  email: 'user@veritas.ai',  password: 'user123',  role: 'user',  plan: 'Pro',        status: 'active',   date_joined: '2025-06-20' },
-  { id: 3, name: 'Sam Rivera',  email: 'sam@veritas.ai',   password: 'sam123',   role: 'user',  plan: 'Starter',    status: 'inactive', date_joined: '2026-01-10' },
+  { id: 1, name: 'Alex Morgan', email: 'admin@GPD.ai', password: 'admin123', role: 'admin', plan: 'Enterprise', status: 'active',   date_joined: '2025-01-15' },
+  { id: 2, name: 'Jordan Lee',  email: 'user@GPD.ai',  password: 'user123',  role: 'user',  plan: 'Pro',        status: 'active',   date_joined: '2025-06-20' },
+  { id: 3, name: 'Sam Rivera',  email: 'sam@GPD.ai',   password: 'sam123',   role: 'user',  plan: 'Starter',    status: 'inactive', date_joined: '2026-01-10' },
 ]

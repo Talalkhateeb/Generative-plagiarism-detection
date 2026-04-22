@@ -4,8 +4,8 @@ Run this script to seed initial data:
 
 Creates:
   - 3 Plans (Starter, Pro, Enterprise)
-  - 1 Admin user (admin@veritas.ai / admin123)
-  - 1 Regular user (user@veritas.ai / user123)
+  - 1 Admin user (admin@GPD.ai / admin123)
+  - 1 Regular user (user@GPD.ai / user123)
 """
 import os, django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'GPD_Back.settings')
@@ -30,21 +30,21 @@ enterprise = Plan.objects.get(name='Enterprise')
 pro        = Plan.objects.get(name='Pro')
 
 # Admin
-if not User.objects.filter(email='admin@veritas.ai').exists():
+if not User.objects.filter(email='admin@GPD.ai').exists():
     admin = User.objects.create_superuser(
-        email='admin@veritas.ai', name='Alex Morgan',
+        email='admin@GPD.ai', name='Alex Morgan',
         password='admin123', role='admin', plan=enterprise
     )
     print(f'Created admin: {admin}')
 
 # Regular user
-if not User.objects.filter(email='user@veritas.ai').exists():
+if not User.objects.filter(email='user@GPD.ai').exists():
     user = User.objects.create_user(
-        email='user@veritas.ai', name='Jordan Lee',
+        email='user@GPD.ai', name='Jordan Lee',
         password='user123', role='user', plan=pro
     )
     print(f'Created user: {user}')
 
 print('\nSeed complete!')
-print('Admin: admin@veritas.ai / admin123')
-print('User:  user@veritas.ai  / user123')
+print('Admin: admin@GPD.ai / admin123')
+print('User:  user@GPD.ai  / user123')

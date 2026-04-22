@@ -1,6 +1,6 @@
 """
 Workspaces — Serializers
-Matching React frontend types: Workspace, Source, Document
+Upload goes to Storage Microservice, only file_key saved in SQL DB.
 """
 import os
 from rest_framework import serializers
@@ -8,7 +8,6 @@ from .models import Workspace, Source, Document
 
 
 class SourceSerializer(serializers.ModelSerializer):
-    """Maps to { id, name, size, ext } in React frontend."""
     size = serializers.SerializerMethodField()
 
     class Meta:
@@ -20,7 +19,6 @@ class SourceSerializer(serializers.ModelSerializer):
 
 
 class DocumentSerializer(serializers.ModelSerializer):
-    """Maps to { id, name, size, ext } in React frontend."""
     size = serializers.SerializerMethodField()
 
     class Meta:
@@ -32,17 +30,16 @@ class DocumentSerializer(serializers.ModelSerializer):
 
 
 class WorkspaceListSerializer(serializers.ModelSerializer):
-    """Compact view for workspace list page."""
     sources_count   = serializers.ReadOnlyField()
     documents_count = serializers.ReadOnlyField()
 
     class Meta:
         model  = Workspace
         fields = ['id', 'name', 'status', 'sources_count', 'documents_count', 'created_at']
-        read_only_fields=['id','status','created_at']
+        read_only_fields = ['id', 'status', 'created_at']
+
 
 class WorkspaceDetailSerializer(serializers.ModelSerializer):
-    """Full workspace detail — includes sources, documents, submission history."""
     sources_count   = serializers.ReadOnlyField()
     documents_count = serializers.ReadOnlyField()
     sources         = SourceSerializer(many=True, read_only=True)
@@ -58,16 +55,14 @@ class WorkspaceDetailSerializer(serializers.ModelSerializer):
 
     def get_submissions(self, obj):
         from apps.submissions.serializers import SubmissionListSerializer
-        return SubmissionListSerializer(
-            obj.submissions.all(), many=True, read_only=True
-        ).data
+        return SubmissionListSerializer(obj.submissions.all(), many=True).data
 
 
 class WorkspaceCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model  = Workspace
-        fields = ['id','name','status','created_at']
-        read_only_fields= ['id','status','created_at']
+        fields = ['id', 'name', 'status', 'created_at']
+        read_only_fields = ['id', 'status', 'created_at']
 
     def create(self, validated_data):
         return Workspace.objects.create(
@@ -82,60 +77,67 @@ class WorkspaceRenameSerializer(serializers.ModelSerializer):
         fields = ['name']
 
 
-class SourceUploadSerializer(serializers.ModelSerializer):
-    """For POST /api/workspaces/{id}/sources/"""
-    file = serializers.FileField()
+class SourceUploadSerializer(serializers.Serializer):
+    """Uploads file to Storage Microservice, saves file_key in DB."""
+    file   = serializers.FileField()
+    author = serializers.CharField(required=False, default='')
 
-    class Meta:
-        model  = Source
-        fields = ['file', 'author']
+    ALLOWED = ['.pdf', '.docx', '.doc', '.txt']
 
     def validate_file(self, value):
-        allowed_ext = ['.pdf', '.docx', '.doc', '.txt']
         _, ext = os.path.splitext(value.name)
-        if ext.lower() not in allowed_ext:
+        if ext.lower() not in self.ALLOWED:
             raise serializers.ValidationError(
-                f'Unsupported file type "{ext}". Allowed: {", ".join(allowed_ext)}'
+                f'Unsupported type "{ext}". Allowed: {", ".join(self.ALLOWED)}'
             )
         return value
 
-    def create(self, validated_data):
-        file = validated_data['file']
+    def save(self):
+        from minio_client import upload_source
+        ws   = self.context['workspace']
+        file = self.validated_data['file']
         _, ext = os.path.splitext(file.name)
+
+        # Upload to storage microservice → get file_key back
+        result = upload_source(workspace_id=ws.id, file=file)
+
         return Source.objects.create(
-            workspace=self.context['workspace'],
-            file=file,
+            workspace=ws,
+            file_key=result['file_key'],
             name=file.name,
-            size=file.size,
+            size=result['file_size'],
             ext=ext.lstrip('.').upper(),
-            author=validated_data.get('author', ''),
+            author=self.validated_data.get('author', ''),
         )
 
 
-class DocumentUploadSerializer(serializers.ModelSerializer):
-    """For POST /api/workspaces/{id}/documents/"""
+class DocumentUploadSerializer(serializers.Serializer):
+    """Uploads file to Storage Microservice, saves file_key in DB."""
     file = serializers.FileField()
 
-    class Meta:
-        model  = Document
-        fields = ['file']
+    ALLOWED = ['.pdf', '.docx', '.doc', '.txt']
 
     def validate_file(self, value):
-        allowed_ext = ['.pdf', '.docx', '.doc', '.txt']
         _, ext = os.path.splitext(value.name)
-        if ext.lower() not in allowed_ext:
+        if ext.lower() not in self.ALLOWED:
             raise serializers.ValidationError(
-                f'Unsupported file type "{ext}". Allowed: {", ".join(allowed_ext)}'
+                f'Unsupported type "{ext}". Allowed: {", ".join(self.ALLOWED)}'
             )
         return value
 
-    def create(self, validated_data):
-        file = validated_data['file']
+    def save(self):
+        from minio_client import upload_document
+        ws   = self.context['workspace']
+        file = self.validated_data['file']
         _, ext = os.path.splitext(file.name)
+
+        # Upload to storage microservice → get file_key back
+        result = upload_document(workspace_id=ws.id, file=file)
+
         return Document.objects.create(
-            workspace=self.context['workspace'],
-            file=file,
+            workspace=ws,
+            file_key=result['file_key'],
             name=file.name,
-            size=file.size,
+            size=result['file_size'],
             ext=ext.lstrip('.').upper(),
         )

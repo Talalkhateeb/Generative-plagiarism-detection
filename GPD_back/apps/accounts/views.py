@@ -21,6 +21,12 @@ from .serializers import (
     ChangePasswordSerializer, AdminAccountSerializer,
 )
 from .permissions import IsAdminRole, IsActiveUser
+from .serializers import (
+    SendOTPSerializer, VerifyOTPAndRegisterSerializer,
+    ResendOTPSerializer,   # ← add this
+    UserProfileSerializer, UpdateProfileSerializer,
+    ChangePasswordSerializer, AdminAccountSerializer,
+)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -48,7 +54,7 @@ def _build_token_response(account, http_status=status.HTTP_200_OK):
 
 # ── Custom JWT: add role/name/email to token claims ───────────────────────────
 
-class VeritasTokenObtainSerializer(TokenObtainPairSerializer):
+class GPDTokenObtainSerializer(TokenObtainPairSerializer):
     """UC-1: Log In — adds role/name to JWT payload."""
 
     @classmethod
@@ -83,7 +89,7 @@ class LoginView(TokenObtainPairView):
     Body: { email, password }
     Response: { access, refresh, user }
     """
-    serializer_class  = VeritasTokenObtainSerializer
+    serializer_class  = GPDTokenObtainSerializer
     permission_classes = [AllowAny]
 
 
@@ -131,19 +137,17 @@ class VerifyOTPView(APIView):
         account = serializer.create_user()
         return _build_token_response(account, status.HTTP_201_CREATED)
 
-
 class ResendOTPView(APIView):
-    """
+     """
     POST /api/auth/register/resend-otp/
     Resend a fresh OTP to the email.
     Body: { name, email, password, plan_id }
     """
-    permission_classes = [AllowAny]
+     permission_classes = [AllowAny]
 
-    def post(self, request):
-        serializer = SendOTPSerializer(data=request.data)
+     def post(self, request):
+        serializer = ResendOTPSerializer(data=request.data)  # ← use new serializer
         serializer.is_valid(raise_exception=True)
-
         try:
             serializer.send_otp()
         except Exception as e:
@@ -151,11 +155,8 @@ class ResendOTPView(APIView):
                 {'error': f'Failed to send email: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
         email = serializer.validated_data['email']
         return Response({'message': f'New verification code sent to {email}.'})
-
-
 # ── Logout ────────────────────────────────────────────────────────────────────
 
 class LogoutView(APIView):

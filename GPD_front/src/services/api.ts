@@ -1,5 +1,5 @@
 /**
- * Veritas.AI — API Service
+ * GPD.AI — API Service
  */
 import axios, { type AxiosError } from 'axios'
 

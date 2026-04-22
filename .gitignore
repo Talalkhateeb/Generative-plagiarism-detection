@@ -7,6 +7,8 @@ pycache/
 *.egg-info/
 dist/
 build/
+.claude/
+.pytest_cache/
 
 # Database — never commit this
 db.sqlite3

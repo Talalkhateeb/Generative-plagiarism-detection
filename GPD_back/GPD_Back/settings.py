@@ -1,14 +1,19 @@
 """
-Veritas.AI — Django Settings
+GPD.AI — Django Settings
 Backend for Plagiarism Detection System
 """
+
 import os
 from pathlib import Path
 from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-veritas-dev-key-change-in-production')
+import environ
+env = environ.Env()
+environ.Env.read_env(BASE_DIR / '.env')
+
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-GPD-dev-key-change-in-production')
 
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
@@ -77,22 +82,25 @@ DATABASES = {
     # ── SQL Server (production) ───────────────────────────────
     # pip install mssql-django
     
-    'default': {
+'default': {
         'ENGINE': 'mssql',
-        'NAME': 'GPD_db',
-        'HOST': 'localhost\\SQLEXPRESS',
+        'NAME': 'GPD',
+        'HOST': 'DESKTOP-OJ5AKU2\SQLEXPRESS', # e.g., 'localhost\SQLEXPRESS'
+        'PORT': '',  # Leave blank for default port
         'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-            'trusted_connection': 'yes',
+            'driver': 'ODBC Driver 17 for SQL Server', # Ensure this matches your installed version
+            'extra_params': 'Trusted_Connection=yes;', # Key for Windows Auth
         },
     }
+
+
 
     # ── PostgreSQL (alternative) ──────────────────────────────
     # pip install psycopg2-binary
     # 'default': {
     #     'ENGINE': 'django.db.backends.postgresql',
-    #     'NAME': os.environ.get('DB_NAME', 'veritas_db'),
-    #     'USER': os.environ.get('DB_USER', 'veritas_user'),
+    #     'NAME': os.environ.get('DB_NAME', 'GPD_db'),
+    #     'USER': os.environ.get('DB_USER', 'GPD_user'),
     #     'PASSWORD': os.environ.get('DB_PASSWORD', ''),
     #     'HOST': os.environ.get('DB_HOST', 'localhost'),
     #     'PORT': os.environ.get('DB_PORT', '5432'),
@@ -187,26 +195,45 @@ PLAN_DEFAULTS = {
     'Enterprise': {'checks': -1,  'max_sources': -1, 'max_docs': -1},
 }
 
-CELERY_BROKER_URL='amqp://localhost'
-CELERY_RESULT_BACKEND='rpc://'
-CELERY_TASK_SERIALIZER='json'
+CELERY_BROKER_URL    = os.environ.get('CELERY_BROKER_URL', 'amqp://localhost')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'rpc://')
+CELERY_TASK_SERIALIZER = 'json'
+
+# ── Storage Microservice ──────────────────────────────────────────────────────
+STORAGE_SERVICE_URL = os.environ.get('STORAGE_SERVICE_URL', '')
+
+# ── AI Model ──────────────────────────────────────────────────────────────────
+AI_MODEL_URL = os.environ.get('AI_MODEL_URL', '')
+
 # ── Email Configuration ───────────────────────────────────────────────────────
 # For development: prints emails to the console instead of sending them
 # Change to smtp backend + credentials for production
 
 EMAIL_BACKEND = os.environ.get(
     'EMAIL_BACKEND',
-    'django.core.mail.backends.console.EmailBackend'   # dev: prints to terminal
-    # 'django.core.mail.backends.smtp.EmailBackend'    # prod: real email
+    #'django.core.mail.backends.console.EmailBackend'   # dev: prints to terminal
+     'django.core.mail.backends.smtp.EmailBackend'    # prod: real email
 )
-
 # Gmail SMTP example (set in environment variables, never hardcode):
 EMAIL_HOST          = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT          = int(os.environ.get('EMAIL_PORT', 587))
 EMAIL_USE_TLS       = True
 EMAIL_HOST_USER     = os.environ.get('EMAIL_HOST_USER', '')      # your@gmail.com
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')  # Gmail app password
-DEFAULT_FROM_EMAIL  = os.environ.get('DEFAULT_FROM_EMAIL', 'Veritas.AI <noreply@veritas.ai>')
+DEFAULT_FROM_EMAIL  = os.environ.get('DEFAULT_FROM_EMAIL', 'GPD.AI <engtalaalkhateeb2004@gmail.com>')
+'''
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')  
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')  
+
+DEFAULT_FROM_EMAIL = f'GPD.AI <{EMAIL_HOST_USER}>'
+SERVER_EMAIL = EMAIL_HOST_USER
+
+'''
 
 # ── AUTH_USER_MODEL: point to Account (base model) ───────────────────────────
 # Keep this as 'accounts.User' because that's what the migration named it.
