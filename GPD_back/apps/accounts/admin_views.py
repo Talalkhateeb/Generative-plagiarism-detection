@@ -3,7 +3,7 @@ UC-9: Admin — Accounts Management
 Admin can ONLY change status (active/inactive) as per requirements.
 """
 from rest_framework import generics, filters
-from .models import User, Admin, Account, OTPVerification
+from .models import User
 from .serializers import AdminAccountSerializer
 from .permissions import IsAdminRole
 
@@ -18,7 +18,7 @@ class AdminAccountListView(generics.ListAPIView):
     ordering           = ['-created_at']
 
     def get_queryset(self):
-        qs = Account.objects.select_related('plan').all()
+        qs = User.objects.select_related('plan').all()
         # Filter by status if provided
         status = self.request.query_params.get('status')
         if status:

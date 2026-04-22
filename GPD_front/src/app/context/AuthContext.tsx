@@ -62,15 +62,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) =>  {
       saveUser(u); setUser(u)
       return { success: true }
     } catch (apiErr: any) {
-      // Fallback to mock data if Django server is not running
-      /*if (!apiErr.response) {
-        const found = MOCK_ACCOUNTS.find(u => u.email === email && u.password === password)
-        if (found) {
-          const { password: _, ...safe } = found
-          saveUser(safe); setUser(safe)
-          return { success: true }
-        }*/
-      
      const msg = apiErr.response?.data?.detail
         || apiErr.response?.data?.non_field_errors?.[0]
         || 'Invalid email or password'

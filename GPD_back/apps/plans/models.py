@@ -38,6 +38,7 @@ class Plan(models.Model):
             return -1  # unlimited
         month_count = Submission.objects.filter(
             user=user,
+            status='completed',
             created_at__year=now.year,
             created_at__month=now.month,
         ).count()

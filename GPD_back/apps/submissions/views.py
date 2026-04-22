@@ -18,6 +18,8 @@ from .serializers import SubmissionListSerializer, SubmissionHistorySerializer
 from apps.workspaces.models import Workspace
 from apps.accounts.permissions import IsActiveUser
 
+import logging
+logger = logging.getLogger(__name__)
 
 class SubmitView(APIView):
     """
@@ -67,7 +69,18 @@ class SubmitView(APIView):
         submission.update_total_loads_today()
 
         # UC-4 Step 4: Send to AI Model (via message broker)
-        submission.send_docs()
+        try:
+            submission.send_docs()
+        except Exception as e:
+            logger.error(f"Failed to queue submission #{submission.id}: {e}")
+            submission.status = 'failed'
+            submission.save(update_fields=['status'])
+            ws.status = 'draft'
+            ws.save(update_fields=['status'])
+            return Response(
+                {'error': 'Failed to queue analysis. Please try again.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
 
         return Response(
             SubmissionListSerializer(submission).data,

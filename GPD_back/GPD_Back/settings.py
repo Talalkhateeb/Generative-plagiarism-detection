@@ -73,15 +73,6 @@ WSGI_APPLICATION = 'GPD_Back.wsgi.application'
 
 # ── Database ─────────────────────────────────────────────────────────────────
 DATABASES = {
-    # ── SQLite (development) ──────────────────────────────────
-    # 'default': {
-    #     'ENGINE': 'django.db.backends.sqlite3',
-    #     'NAME': BASE_DIR / 'db.sqlite3',
-    # }
-
-    # ── SQL Server (production) ───────────────────────────────
-    # pip install mssql-django
-    
 'default': {
         'ENGINE': 'mssql',
         'NAME': 'GPD',
@@ -92,19 +83,6 @@ DATABASES = {
             'extra_params': 'Trusted_Connection=yes;', # Key for Windows Auth
         },
     }
-
-
-
-    # ── PostgreSQL (alternative) ──────────────────────────────
-    # pip install psycopg2-binary
-    # 'default': {
-    #     'ENGINE': 'django.db.backends.postgresql',
-    #     'NAME': os.environ.get('DB_NAME', 'GPD_db'),
-    #     'USER': os.environ.get('DB_USER', 'GPD_user'),
-    #     'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-    #     'HOST': os.environ.get('DB_HOST', 'localhost'),
-    #     'PORT': os.environ.get('DB_PORT', '5432'),
-    # }
 }
 
 # ── Custom User Model ─────────────────────────────────────────────────────────

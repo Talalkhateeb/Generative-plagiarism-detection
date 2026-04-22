@@ -18,8 +18,10 @@ export const WorkspaceProvider = ({ children }: { children: React.ReactNode }) =
     
     workspacesAPI.list()
       .then(res =>setWorkspaces(res.data.results ?? res.data))
-      .catch(()=>setWorkspaces([]))},[user?.id])
-    return (
+      .catch(()=>setWorkspaces([]))},
+      [user?.id])
+      
+  return (
     <WorkspaceContext.Provider value={{ workspaces, setWorkspaces }}>
       {children}
     </WorkspaceContext.Provider>
