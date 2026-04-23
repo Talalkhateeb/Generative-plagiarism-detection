@@ -73,7 +73,7 @@ TEMPLATES = [{
 WSGI_APPLICATION = 'GPD_Back.wsgi.application'
 
 # ── Database ─────────────────────────────────────────────────────────────────
-
+"""
 DATABASES = {
     
     # ── SQLite (development) ──────────────────────────────────
@@ -108,10 +108,10 @@ DATABASES = {
     #     'HOST': os.environ.get('DB_HOST', 'localhost'),
     #     'PORT': os.environ.get('DB_PORT', '5432'),
     # }
-}
+}"""
 # CI / TEST MODE (override)
-if os.getenv("CI") == "true":
-    DATABASES = {
+#if os.getenv("CI") == "true":
+DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": ":memory:",
