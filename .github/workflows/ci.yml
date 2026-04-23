@@ -76,7 +76,13 @@ jobs:
           MINIO_BUCKET=gpd-test
           CELERY_BROKER_URL=memory://
           EOF
-
+      - name: Install MS SQL Server Drive
+        run: |
+          sudo curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+          sudo curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list > ./mssql-release.list
+          sudo mv ./mssql-release.list /etc/apt/sources.list.d/
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql17
       - name: Run database migrations
         run: python manage.py migrate --run-syncdb
 
