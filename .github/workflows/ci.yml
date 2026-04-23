@@ -173,27 +173,27 @@ jobs:
           print('Seed complete')
           "
 
-- name: Start Django backend
-  run: |
-    python manage.py runserver 0.0.0.0:8000 &
-
-    echo "Waiting for Django to start..."
-
-    until curl -s http://localhost:8000; do
-      sleep 1
-    done
-
-    echo "Django is up!"
-  env:
-    DJANGO_SETTINGS_MODULE: GPD_Back.settings
-      - name: Run Playwright E2E Tests
+      - name: Start Django backend
         run: |
-          pytest tests/test_e2e.py -v \
-            --base-url http://localhost:3000 \
-            -m e2e --screenshot=only-on-failure
+          python manage.py runserver 0.0.0.0:8000 &
+
+          echo "Waiting for Django to start..."
+
+          until curl -s http://localhost:8000; do
+            sleep 1
+          done
+
+          echo "Django is up!"
         env:
-          BASE_URL: http://localhost:3000
-        continue-on-error: true   # frontend may not be running in all CI environments
+        DJANGO_SETTINGS_MODULE: GPD_Back.settings
+          - name: Run Playwright E2E Tests
+            run: |
+              pytest tests/test_e2e.py -v \
+                --base-url http://localhost:3000 \
+                -m e2e --screenshot=only-on-failure
+            env:
+              BASE_URL: http://localhost:3000
+            continue-on-error: true   # frontend may not be running in all CI environments
 
       - name: Upload Playwright traces on failure
         uses: actions/upload-artifact@v4
