@@ -15,7 +15,9 @@ from apps.accounts.models import User, OTPVerification
 from apps.plans.models import Plan
 from apps.workspaces.models import Workspace, Document, Source
 from apps.submissions.models import Submission
+from unittest.mock import patch
 
+@patch("apps.results.tasks.run_check.delay")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # HELPERS

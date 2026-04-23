@@ -29,7 +29,7 @@ import redis
 app = FastAPI(title="GPD Storage Service", version="1.0.0")
 
 # ── MinIO client ──────────────────────────────────────────────────────────────
-MINIO_ENDPOINT   = os.getenv("MINIO_ENDPOINT",   "127.0.0.1:9000")
+MINIO_ENDPOINT   = os.getenv("MINIO_ENDPOINT",   "minio.gpdetect.com")
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "admin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "password123")
 MINIO_BUCKET     = os.getenv("MINIO_BUCKET",     "veritas")
@@ -38,8 +38,8 @@ client = Minio(
     MINIO_ENDPOINT,
     access_key=MINIO_ACCESS_KEY,
     secret_key=MINIO_SECRET_KEY,
-   # secure=True,
-   secure=False,
+    secure=True,
+   #secure=False,
 )
 
 # In-memory result store (replace with Redis or DB in production)

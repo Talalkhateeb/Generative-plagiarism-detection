@@ -177,9 +177,9 @@ jobs:
         run: |
           python manage.py runserver 0.0.0.0:8000 &
           # بدلاً من sleep 3
-        echo "Waiting for Django to start..."
-        until curl -s http://localhost:8000; do
-        sleep 1
+          echo "Waiting for Django to start..."
+               until curl -s http://localhost:8000; do
+          sleep 1
         done
         echo "Django is up!"   # give Django time to start
         env:
@@ -189,7 +189,7 @@ jobs:
         run: |
           pytest tests/test_e2e.py -v \
             --base-url http://localhost:3000 \
-            -m e2e
+            -m e2e --screenshot=only-on-failure
         env:
           BASE_URL: http://localhost:3000
         continue-on-error: true   # frontend may not be running in all CI environments

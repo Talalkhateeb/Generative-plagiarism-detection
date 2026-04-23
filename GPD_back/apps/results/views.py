@@ -20,6 +20,89 @@ from apps.workspaces.models import Workspace
 from apps.submissions.models import Submission
 from apps.accounts.permissions import IsActiveUser
 
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from apps.submissions.models import Submission
+from apps.results.models import DocumentResult, MatchedSource
+from apps.workspaces.models import Source
+import logging
+
+logger = logging.getLogger(__name__)
+
+class AIResultCallbackView(APIView):
+    """
+    POST /api/results/callback/
+    Called by FastAPI AI model when analysis is complete.
+    Saves result directly to DB — no polling needed.
+    """
+    authentication_classes = []  # internal service, no user auth
+    permission_classes = []
+
+    def post(self, request):
+        data = request.data
+
+        submission_id  = data.get('submission_id')
+        document_id    = data.get('document_id')
+        plagiarism_score = data.get('plagiarism_score')
+        matched_sources  = data.get('matched_sources', [])
+        error            = data.get('error')
+
+        try:
+            submission = Submission.objects.get(pk=submission_id)
+        except Submission.DoesNotExist:
+            return Response({'error': 'Submission not found'}, status=404)
+
+        # Handle AI failure
+        if error:
+            logger.error(f'AI reported error for submission #{submission_id}: {error}')
+            submission.status = 'failed'
+            submission.save(update_fields=['status'])
+            return Response({'status': 'error recorded'})
+
+        from apps.workspaces.models import Document
+        try:
+            document = Document.objects.get(pk=document_id)
+        except Document.DoesNotExist:
+            return Response({'error': 'Document not found'}, status=404)
+
+        sources = list(submission.sources.all())
+
+        # Save DocumentResult
+        doc_result, _ = DocumentResult.objects.update_or_create(
+            submission=submission,
+            document=document,
+            defaults={
+                'workspace':          submission.workspace,
+                'plagiarism_score':   plagiarism_score,
+                'original_percentage': round(100 - plagiarism_score, 1),
+                'segments_json':      data.get('highlighted_paragraphs', []),
+            }
+        )
+
+        # Save matched sources
+        doc_result.matched_sources.all().delete()
+        for ms in sorted(matched_sources, key=lambda x: x['match_percentage'], reverse=True):
+            source = next((s for s in sources if s.name == ms['source_name']), None)
+            if source:
+                MatchedSource.objects.create(
+                    result=doc_result,
+                    source=source,
+                    match_percentage=ms['match_percentage'],
+                )
+
+        # Check if ALL documents for this submission are done
+        total_docs    = submission.documents.count()
+        finished_docs = submission.document_results.count()
+
+        if finished_docs >= total_docs:
+            submission.status = 'completed'
+            submission.workspace.status = 'analyzed'
+            submission.workspace.save(update_fields=['status'])
+            submission.save(update_fields=['status'])
+            logger.info(f'Submission #{submission_id} completed.')
+
+        return Response({'status': 'saved'})
 
 class ResultListView(APIView):
     """

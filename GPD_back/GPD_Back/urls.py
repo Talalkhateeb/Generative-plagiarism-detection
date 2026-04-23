@@ -47,4 +47,5 @@ urlpatterns = [
     path('api/workspaces/',  include('apps.workspaces.urls')),
     path('api/submissions/', include('apps.submissions.urls')),
     path('api/admin/',       include('apps.accounts.admin_urls')),
+    path('api/results/', include('apps.results.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
