@@ -6,15 +6,11 @@ on:
   pull_request:
     branches: [main, software-dev]
 
-# ── Environment variables available to all jobs ───────────────────────────────
 env:
   PYTHON_VERSION: "3.11"
   DJANGO_SETTINGS_MODULE: GPD_Back.settings
 
 jobs:
-  # ════════════════════════════════════════════════════════════════════════════
-  # JOB 1 — SECRET SCANNING (GitLeaks)
-  # ════════════════════════════════════════════════════════════════════════════
   secret-scan:
     name: 🔐 Secret Scan (GitLeaks)
     runs-on: ubuntu-latest
@@ -22,16 +18,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # full history so GitLeaks can scan all commits
+          fetch-depth: 0
 
       - name: Run GitLeaks
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # ════════════════════════════════════════════════════════════════════════════
-  # JOB 2 — UNIT & INTEGRATION TESTS
-  # ════════════════════════════════════════════════════════════════════════════
   test:
     name: 🧪 Unit & Integration Tests
     runs-on: ubuntu-latest
@@ -108,16 +101,15 @@ jobs:
           flags: unittests
           fail_ci_if_error: false
 
-  # ════════════════════════════════════════════════════════════════════════════
-  # JOB 3 — E2E TESTS (Playwright)
-  # ════════════════════════════════════════════════════════════════════════════
   e2e:
     name: 🎭 E2E Tests (Playwright)
     runs-on: ubuntu-latest
     needs: test
+
     defaults:
       run:
         working-directory: GPD_back
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -129,7 +121,7 @@ jobs:
           cache: pip
 
       - name: Install backend dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r ../requirements.txt
 
       - name: Install Playwright + browsers
         run: |
@@ -148,37 +140,21 @@ jobs:
           CELERY_BROKER_URL=memory://
           EOF
 
-      - name: Prepare E2E database (seed test users)
+      - name: Prepare E2E database
         run: |
           python manage.py migrate --run-syncdb
-          python manage.py shell -c "
-          from apps.accounts.models import User
-          from apps.plans.models import Plan
-          plan, _ = Plan.objects.get_or_create(
-              name='Perf', defaults={'price': 9, 'checks_per_month': 100}
-          )
-          for i in range(1, 4):
-              User.objects.get_or_create(
-                  email=f'perf_user{i}@gpd.com',
-                  defaults={'name': f'Perf User {i}', 'plan': plan}
-              )[0].set_password('TestPass123!') or \
-              User.objects.get(email=f'perf_user{i}@gpd.com').save()
-          print('Seed complete')
-          "
 
       - name: Start Django backend
         run: |
           python manage.py runserver 0.0.0.0:8000 &
 
-          echo "Waiting for Django to start..."
+          echo "Waiting for Django..."
 
           until curl -s http://localhost:8000; do
             sleep 1
           done
 
           echo "Django is up!"
-        env:
-          DJANGO_SETTINGS_MODULE: GPD_Back.settings
 
       - name: Run Playwright E2E Tests
         run: |
@@ -197,9 +173,6 @@ jobs:
           path: test-results/
           retention-days: 7
 
-  # ════════════════════════════════════════════════════════════════════════════
-  # JOB 4 — PERFORMANCE TEST
-  # ════════════════════════════════════════════════════════════════════════════
   performance:
     name: ⚡ Performance Smoke Test (Locust)
     runs-on: ubuntu-latest
