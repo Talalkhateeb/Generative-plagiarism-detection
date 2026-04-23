@@ -173,18 +173,19 @@ jobs:
           print('Seed complete')
           "
 
-      - name: Start Django backend
-        run: |
-          python manage.py runserver 0.0.0.0:8000 &
-          # بدلاً من sleep 3
-          echo "Waiting for Django to start..."
-               until curl -s http://localhost:8000; do
-          sleep 1
-        done
-        echo "Django is up!"   # give Django time to start
-        env:
-          DJANGO_SETTINGS_MODULE: GPD_Back.settings
+- name: Start Django backend
+  run: |
+    python manage.py runserver 0.0.0.0:8000 &
 
+    echo "Waiting for Django to start..."
+
+    until curl -s http://localhost:8000; do
+      sleep 1
+    done
+
+    echo "Django is up!"
+  env:
+    DJANGO_SETTINGS_MODULE: GPD_Back.settings
       - name: Run Playwright E2E Tests
         run: |
           pytest tests/test_e2e.py -v \
