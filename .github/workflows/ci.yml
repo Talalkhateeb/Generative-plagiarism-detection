@@ -72,8 +72,14 @@ jobs:
           pip install pytest pytest-django
 
       - name: Wait for SQL Server
-        run: sleep 20
-
+        run: |
+          for i in {1..30}; do
+            nc -z localhost 1433 && echo "SQL Server is up!" && exit 0
+            echo "Waiting for SQL Server..."
+            sleep 2
+          done
+          echo "SQL Server failed to start"
+          exit 1
       - name: Run migrations
         working-directory: GPD_back
         env:
