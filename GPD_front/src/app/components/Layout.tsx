@@ -39,7 +39,7 @@ export default function Layout() {
           <div className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center">
             <Shield size={14} className="text-primary"/>
           </div>
-          <span className="font-bold tracking-tight text-sm">GPD<span className="text-primary">.AI</span></span>
+          <span className="font-bold tracking-tight text-sm">GPDetect</span>
         </div>
         <div className="flex-1"/>
         <ThemeToggle theme={theme} toggle={toggleTheme}/>

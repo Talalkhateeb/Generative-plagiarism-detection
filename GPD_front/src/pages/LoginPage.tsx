@@ -155,8 +155,8 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 mb-4">
             <Shield size={26} className="text-primary"/>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">GPD<span className="text-primary">.AI</span></h1>
-          <p className="text-sm text-muted-foreground mt-1">Academic Integrity Platform</p>
+          <h1 className="text-2xl font-bold tracking-tight">GPDetect</h1>
+          <p className="text-sm text-muted-foreground mt-1">Generative Plagiarism Detection</p>
         </div>
 
         {/* Tab switcher — hide during OTP step */}

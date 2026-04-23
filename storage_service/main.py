@@ -30,8 +30,8 @@ app = FastAPI(title="GPD Storage Service", version="1.0.0")
 
 # ── MinIO client ──────────────────────────────────────────────────────────────
 MINIO_ENDPOINT   = os.getenv("MINIO_ENDPOINT",   "127.0.0.1:9000")
-MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "admin")
-MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "password123")
+MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
+MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
 MINIO_BUCKET     = os.getenv("MINIO_BUCKET",     "veritas")
 
 client = Minio(

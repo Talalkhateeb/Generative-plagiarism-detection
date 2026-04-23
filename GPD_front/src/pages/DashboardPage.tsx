@@ -140,9 +140,9 @@ export default function DashboardPage() {
         <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center mx-auto mb-4">
           <Sparkles size={28} className="text-primary"/>
         </div>
-        <h3 className="text-lg font-bold mb-2">Welcome to GPD.AI</h3>
+        <h3 className="text-lg font-bold mb-2">Welcome to GPDetect</h3>
         <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6">
-          GPD.AI helps you detect plagiarism in academic documents using AI.
+          GPDetect helps you detect plagiarism in academic documents using AI.
           Create a workspace, upload your sources and documents, and get a detailed plagiarism report in seconds.
         </p>
         <button onClick={() => navigate('/workspaces')}
@@ -192,7 +192,7 @@ export default function DashboardPage() {
     <div className="space-y-6 animate-fade-in">
       <div>
         <h2 className="text-xl font-bold">Welcome back, {user?.name?.split(' ')[0]} 👋</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">Here's your GPD.AI overview</p>
+        <p className="text-sm text-muted-foreground mt-0.5">Here's your GPDetect overview</p>
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
