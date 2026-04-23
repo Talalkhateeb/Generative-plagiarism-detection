@@ -2,9 +2,9 @@ name: GPD.AI — CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, software-dev]
   pull_request:
-    branches: [main, develop]
+    branches: [main, software-dev]
 
 # ── Environment variables available to all jobs ───────────────────────────────
 env:
