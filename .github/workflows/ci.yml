@@ -184,7 +184,7 @@ jobs:
 
           echo "Django is up!"
         env:
-        DJANGO_SETTINGS_MODULE: GPD_Back.settings
+        DJANGO_SETTINGS_MODULE:GPD_Back.settings
       - name: Run Playwright E2E Tests
         run: |
           pytest tests/test_e2e.py -v \
