@@ -73,14 +73,14 @@ WSGI_APPLICATION = 'GPD_Back.wsgi.application'
 
 # ── Database ─────────────────────────────────────────────────────────────────
 DATABASES = {
-'default': {
+    'default': {
         'ENGINE': 'mssql',
-        'NAME': 'GPD',
-        'HOST': 'DESKTOP-OJ5AKU2\SQLEXPRESS', # e.g., 'localhost\SQLEXPRESS'
-        'PORT': '',  # Leave blank for default port
+        'NAME': env('DB_NAME', default='GPD'),
+        'HOST': env('DB_HOST', default=''),
+        'PORT': env('DB_PORT', default=''),
         'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server', # Ensure this matches your installed version
-            'extra_params': 'Trusted_Connection=yes;', # Key for Windows Auth
+            'driver': 'ODBC Driver 17 for SQL Server',
+            'extra_params': 'Trusted_Connection=yes;',
         },
     }
 }

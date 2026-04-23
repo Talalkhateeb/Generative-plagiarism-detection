@@ -33,7 +33,7 @@ class AdminAccountDetailView(generics.RetrieveUpdateAPIView):
     """
     serializer_class   = AdminAccountSerializer
     permission_classes = [IsAdminRole]
-    queryset           = Account.objects.select_related('plan').all()
+    queryset           = User.objects.select_related('plan').all()
     http_method_names  = ['get', 'patch', 'head', 'options']
 
     def perform_update(self, serializer):
