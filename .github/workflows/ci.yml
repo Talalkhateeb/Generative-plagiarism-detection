@@ -30,60 +30,71 @@ jobs:
   # ═════════════════════════════════════════════
   # 🧪 2. UNIT + INTEGRATION TESTS
   # ═════════════════════════════════════════════
-  tests:
-    name: 🧪 Unit + Integration Tests
-    runs-on: ubuntu-latest
-    needs: security
+tests:
+  name: 🧪 Unit + Integration Tests
+  runs-on: ubuntu-latest
+  needs: security
 
-    steps:
-      - uses: actions/checkout@v4
+  services:
+    sqlserver:
+      image: mcr.microsoft.com/mssql/server:2019-latest
+      env:
+        SA_PASSWORD: "YourStrong!Pass123"
+        ACCEPT_EULA: "Y"
+      ports:
+        - 1433:1433
+      options: >-
+        --health-cmd "exit 0"
+        --health-interval 10s
+        --health-timeout 5s
+        --health-retries 10
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
+  steps:
+    - uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r GPD_back/requirements.txt
-          pip install pytest pytest-django pytest-cov
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
 
-      # ✅ FIX: Force SQLite for CI (important)
-      - name: Create test environment
-        run: |
-          cat > GPD_back/.env << EOF
-          SECRET_KEY=ci-key
-          DEBUG=True
-          DB_ENGINE=django.db.backends.sqlite3
-          DB_NAME=:memory:
-          ALLOWED_HOSTS=localhost
-          EOF
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y curl apt-transport-https unixodbc-dev
+        curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+        curl https://packages.microsoft.com/config/ubuntu/20.04/prod.list | sudo tee /etc/apt/sources.list.d/msprod.list
+        sudo apt-get update
+        sudo ACCEPT_EULA=Y apt-get install -y msodbcsql17
 
-      # 🧠 FIX: avoid SQL Server / ODBC crash
-      - name: Override DB for CI (safe mode)
-        run: |
-          echo "Using SQLite for CI tests"
+    - name: Install Python dependencies
+      run: |
+        pip install -r GPD_back/requirements.txt
+        pip install pytest pytest-django
 
-      - name: Run migrations
-        working-directory: GPD_back
-        run: python manage.py migrate --run-syncdb
+    - name: Wait for SQL Server
+      run: sleep 20
 
-      - name: Run Unit + Integration Tests
-        working-directory: GPD_back
-        run: |
-          pytest tests/test_unit.py -v \
-            --cov=apps \
-            --cov-report=term-missing \
-            --cov-report=xml:coverage.xml
+    - name: Run migrations
+      working-directory: GPD_back
+      env:
+        DB_ENGINE: mssql
+        DB_NAME: master
+        DB_USER: sa
+        DB_PASSWORD: YourStrong!Pass123
+        DB_HOST: localhost
+        DB_PORT: 1433
+      run: python manage.py migrate
 
-      - name: Upload Coverage
-        uses: codecov/codecov-action@v4
-        with:
-          file: GPD_back/coverage.xml
-          fail_ci_if_error: false
-
+    - name: Run tests
+      working-directory: GPD_back
+      env:
+        DB_ENGINE: mssql
+        DB_NAME: master
+        DB_USER: sa
+        DB_PASSWORD: YourStrong!Pass123
+        DB_HOST: localhost
+        DB_PORT: 1433
+      run: pytest tests/ -v
   # ═════════════════════════════════════════════
   # 🎭 3. E2E TESTING (PLAYWRIGHT)
   # ═════════════════════════════════════════════
