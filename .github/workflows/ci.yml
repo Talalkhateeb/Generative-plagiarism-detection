@@ -101,21 +101,21 @@ jobs:
 
       - name: Drop unique constraint before bigautofield migration
         run: |
-          /opt/mssql-tools18/bin/sqlcmd -S localhost,1433 -U sa -P 'YourStrong!Pass123' -C -b -Q "
-            USE tempdb;
-            DECLARE @sql NVARCHAR(MAX) = '';
-            SELECT @sql = @sql +
-              'ALTER TABLE [token_blacklist_outstandingtoken] DROP CONSTRAINT [' + name + '];'
-            FROM sys.objects
-            WHERE type = 'UQ'
-              AND parent_object_id = OBJECT_ID('token_blacklist_outstandingtoken')
-              AND name LIKE 'UQ__token_bl__%';
-            IF LEN(@sql) > 0
-              EXEC sp_executesql @sql;
-            ELSE
-              PRINT ''No constraint found - nothing to drop'';
-          "
+          /opt/mssql-tools18/bin/sqlcmd -S localhost,1433 -U sa -P 'YourStrong!Pass123' -C -b <<EOF
+          USE tempdb;
+          DECLARE @sql NVARCHAR(MAX) = '';
+          SELECT @sql = @sql +
+            'ALTER TABLE [token_blacklist_outstandingtoken] DROP CONSTRAINT [' + name + '];'
+          FROM sys.key_constraints
+          WHERE type = 'UQ'
+            AND parent_object_id = OBJECT_ID('dbo.token_blacklist_outstandingtoken')
+            AND name LIKE 'UQ__token_bl__%';
 
+          IF LEN(@sql) > 0
+            EXEC sp_executesql @sql;
+          ELSE
+            PRINT 'No constraint found - nothing to drop';
+          EOF
       - name: Run remaining migrations
         working-directory: GPD_back
         env:
