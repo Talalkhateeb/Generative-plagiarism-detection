@@ -4,14 +4,16 @@ import { useAuth } from '@/app/context/AuthContext'
 import { useWorkspaces } from '@/app/context/WorkspaceContext'
 import { Card, Badge } from '@/app/components/ui'
 import { useState, useEffect } from 'react'
-import { adminAPI, plansAPI, submissionsAPI } from '@/services/api'
+import { adminAPI, plansAPI, submissionsAPI, workspacesAPI } from '@/services/api'
+import type { Workspace, DocumentResult } from '@/types'
+import { normalizeWorkspaceStatus, workspaceStatusBadgeVariant } from '@/lib/workspaceStatus'
 
 export default function DashboardPage() {
   const { user } = useAuth()
-  const { workspaces } = useWorkspaces()
+  const { workspaces, setWorkspaces, loading: workspacesLoading } = useWorkspaces()
   const navigate = useNavigate()
   const isAdmin  = user?.role === 'admin'
-  const isNewUser = workspaces.length === 0
+  const isNewUser = !workspacesLoading && workspaces.length === 0
 
   // ── Admin stats ────────────────────────────────────────────
   const [recentAccounts, setRecentAccounts] = useState<any[]>([])
@@ -25,14 +27,29 @@ export default function DashboardPage() {
 
   // Collect all plagiarism scores from document_results (new structure)
   const allScores = workspaces.flatMap(w =>
-    (w.submissions ?? []).flatMap((s: any) =>
-      (s.document_results ?? []).map((r: any) => r.plagiarism_score)
-    ).filter((v: any) => v !== undefined && v !== null)
+    (w.submissions ?? []).flatMap(s =>
+      (s.document_results ?? []).map((r: DocumentResult) => r.plagiarism_score)
+    ).filter(v => v !== undefined && v !== null)
   )
   const avgScore = allScores.length
     ? (allScores.reduce((a: number, b: number) => a + b, 0) / allScores.length).toFixed(1)
     : '—'
   const totalSubs = workspaces.reduce((s, w) => s + (w.submissions?.length ?? 0), 0)
+  const reportsGenerated = Math.max(totalSubs, checksUsed)
+
+  // Keep dashboard status cards fresh (e.g., pending -> analyzed after processing finishes)
+  useEffect(() => {
+    if (!user) return
+    workspacesAPI.list()
+      .then(res => {
+        const raw = res.data.results ?? res.data
+        setWorkspaces((raw ?? []).map((w: Workspace) => ({
+          ...w,
+          status: normalizeWorkspaceStatus(w.status),
+        })))
+      })
+      .catch(() => {})
+  }, [user?.id, setWorkspaces])
 
   useEffect(() => {
     if (isAdmin) {
@@ -129,6 +146,12 @@ export default function DashboardPage() {
   )
 
   // ── NEW USER — Welcome screen ────────────────────────────────
+  if (!isAdmin && workspacesLoading) return (
+    <div className="flex items-center justify-center py-20">
+      <div className="w-8 h-8 rounded-full border-4 border-primary/20 border-t-primary animate-spin"/>
+    </div>
+  )
+
   if (isNewUser) return (
     <div className="space-y-8 animate-fade-in">
       <div>
@@ -199,7 +222,7 @@ export default function DashboardPage() {
           { label: 'Total Workspaces',  value: workspaces.length, icon: FolderOpen, color: 'text-primary bg-primary/10' },
           { label: 'Checks Remaining',  value: checksRemaining,   icon: Shield,     color: 'text-violet-400 bg-violet-400/10' },
           { label: 'Avg. Score',        value: `${avgScore}%`,    icon: BarChart3,  color: 'text-emerald-400 bg-emerald-400/10' },
-          { label: 'Reports Generated', value: totalSubs,         icon: FileText,   color: 'text-amber-400 bg-amber-400/10' },
+          { label: 'Reports Generated', value: reportsGenerated,  icon: FileText,   color: 'text-amber-400 bg-amber-400/10' },
         ].map(s => (
           <Card key={s.label} className="p-4">
             <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${s.color}`}><s.icon size={18}/></div>
@@ -224,7 +247,9 @@ export default function DashboardPage() {
                 <p className="text-sm font-medium truncate">{w.name}</p>
                 <p className="text-xs text-muted-foreground">{w.created_at} · {w.sources_count} sources</p>
               </div>
-              <Badge variant={w.status === 'analyzed' ? 'success' : w.status === 'pending' ? 'warning' : 'default'}>{w.status}</Badge>
+              <Badge variant={workspaceStatusBadgeVariant(w.status)}>
+                {normalizeWorkspaceStatus(w.status)}
+              </Badge>
             </div>
           ))}
         </Card>

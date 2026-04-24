@@ -3,10 +3,21 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Download, ChevronDown, ChevronUp, FileText } from 'lucide-react'
 import { Card, Badge, Button } from '@/app/components/ui'
 import { submissionsAPI } from '@/services/api'
-import type { DocumentResult } from '@/types'
+import type { DocumentResult, HighlightSegment } from '@/types'
+import { normalizeWorkspaceStatus, workspaceStatusBadgeVariant } from '@/lib/workspaceStatus'
+
+type HistoryItem = {
+  id: number
+  workspace_id: number
+  workspace_name: string
+  status: string
+  date?: string
+  created_at?: string
+  document_results?: DocumentResult[]
+}
 
 // ── Per-submission row (expandable) ──────────────────────────────────────────
-function SubmissionRow({ h, onOpen }: { h: any; onOpen: () => void }) {
+function SubmissionRow({ h, onOpen }: { h: HistoryItem; onOpen: () => void }) {
   const [expanded, setExpanded] = useState(false)
   const docResults: DocumentResult[] = h.document_results ?? []
   const worstScore = docResults.length
@@ -16,6 +27,7 @@ function SubmissionRow({ h, onOpen }: { h: any; onOpen: () => void }) {
 
   const scoreColor = (s: number) =>
     s >= 30 ? 'text-red-400' : s >= 15 ? 'text-orange-400' : 'text-emerald-400'
+  const normalizedStatus = normalizeWorkspaceStatus(h.status)
 
   return (
     <div className="border-b border-border last:border-0">
@@ -41,8 +53,8 @@ function SubmissionRow({ h, onOpen }: { h: any; onOpen: () => void }) {
           }
         </div>
         <div className="col-span-2">
-          <Badge variant={h.status === 'completed' ? 'success' : 'warning'}>
-            {h.status}
+          <Badge variant={workspaceStatusBadgeVariant(h.status)}>
+            {normalizedStatus}
           </Badge>
         </div>
         <div className="col-span-2 flex justify-end">
@@ -92,19 +104,19 @@ function SubmissionRow({ h, onOpen }: { h: any; onOpen: () => void }) {
                       </div>
                       <div className="h-1.5 rounded-full bg-secondary">
                         <div className="h-full rounded-full transition-all duration-700"
-                          style={{ width: `${Math.min(ms.match * 3, 100)}%`, backgroundColor: ms.color }}/>
+                          style={{ width: `${Math.min(ms.match, 100)}%`, backgroundColor: ms.color }}/>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
               {/* Highlighted plagiarised paragraphs */}
-              {r.highlighted_segments?.filter((s:any) => s.highlight).length > 0 && (
+              {r.highlighted_segments?.filter((s: HighlightSegment) => s.highlight).length > 0 && (
                 <div className="mt-3 space-y-2">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                     Plagiarised Paragraphs
                   </p>
-                  {r.highlighted_segments.filter((s:any) => s.highlight).map((seg:any, i:number) => (
+                  {r.highlighted_segments.filter((s: HighlightSegment) => s.highlight).map((seg: HighlightSegment, i: number) => (
                     <div key={i} className="rounded-lg border-l-4 border-amber-400 bg-amber-400/10 p-2.5">
                       <div className="flex justify-between mb-1">
                         <span className="text-xs font-semibold text-amber-500 truncate pr-2">{seg.source}</span>
@@ -128,7 +140,7 @@ function SubmissionRow({ h, onOpen }: { h: any; onOpen: () => void }) {
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function HistoryPage() {
   const navigate = useNavigate()
-  const [history, setHistory] = useState<any[]>([])
+  const [history, setHistory] = useState<HistoryItem[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {

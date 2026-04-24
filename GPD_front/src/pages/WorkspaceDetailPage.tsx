@@ -6,8 +6,10 @@ import {
 } from 'lucide-react'
 import { Card, Badge, Button, FileRow, DropZone, Alert, ScoreRing } from '@/app/components/ui'
 import { useWorkspaces } from '@/app/context/WorkspaceContext'
-import type { Source, Document, DocumentResult, Submission } from '@/types'
+import type { Source, Document, DocumentResult, Submission, HighlightSegment } from '@/types'
 import { workspacesAPI } from '@/services/api'
+import { downloadPDFReport } from '../../utils/pdfReport'
+import { normalizeWorkspaceStatus, workspaceStatusBadgeVariant } from '@/lib/workspaceStatus'
 
 const ALLOWED_EXTS = ['pdf', 'docx', 'doc', 'txt']
 const STEPS = [
@@ -72,7 +74,7 @@ function DocumentResultCard({ result }: { result: DocumentResult }) {
                     </div>
                     <div className="h-1.5 rounded-full bg-secondary">
                       <div className="h-full rounded-full transition-all duration-700"
-                        style={{ width: `${Math.min(ms.match * 3, 100)}%`, backgroundColor: ms.color }} />
+                        style={{ width: `${Math.min(ms.match, 100)}%`, backgroundColor: ms.color }} />
                     </div>
                   </div>
                 ))
@@ -80,13 +82,13 @@ function DocumentResultCard({ result }: { result: DocumentResult }) {
             </div>
           </div>
 
-          {result.highlighted_segments.filter((s:any) => s.highlight).length > 0 && (
+          {result.highlighted_segments.filter((s: HighlightSegment) => s.highlight).length > 0 && (
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
                 Plagiarised Paragraphs
               </p>
               <div className="space-y-3 max-h-72 overflow-y-auto">
-                {result.highlighted_segments.filter((s:any) => s.highlight).map((seg:any, i:number) => (
+                {result.highlighted_segments.filter((s: HighlightSegment) => s.highlight).map((seg: HighlightSegment, i: number) => (
                   <div key={i} className="rounded-lg border-l-4 border-amber-400 bg-amber-400/10 p-3">
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-xs font-semibold text-amber-500 truncate pr-2">
@@ -128,8 +130,10 @@ export default function WorkspaceDetailPage() {
   const [warning,     setWarning]     = useState('')
   const [downloading, setDownloading] = useState(false)
   const [wsName,      setWsName]      = useState(location.state?.workspace?.name ?? '')
-  const [wsStatus,    setWsStatus]    = useState(location.state?.workspace?.status ?? 'draft')
+  const [wsStatus,    setWsStatus]    = useState(normalizeWorkspaceStatus(location.state?.workspace?.status))
   const [loading,     setLoading]     = useState(true)
+  const [awaitingResults, setAwaitingResults] = useState(false)
+  const [pendingSubmissionId, setPendingSubmissionId] = useState<number | null>(null)
 
   const wsId = Number(id)
 
@@ -144,10 +148,12 @@ export default function WorkspaceDetailPage() {
     const navWs = location.state?.workspace
     if (navWs && Number(navWs.id) === wsId) {
       setWsName(navWs.name ?? '')
-      setWsStatus(navWs.status ?? 'draft')
+      setWsStatus(normalizeWorkspaceStatus(navWs.status))
       setSources([])
       setDocuments([])
       setSubmissions([])
+      setAwaitingResults(false)
+      setPendingSubmissionId(null)
       setLoading(false)
       return
     }
@@ -157,19 +163,84 @@ export default function WorkspaceDetailPage() {
     workspacesAPI.get(wsId)
       .then(res => {
         const data = res.data
+        const normalizedStatus = normalizeWorkspaceStatus(data.status)
+        const latestSubmission = (data.submissions ?? [])[0]
         setWsName(data.name ?? '')
-        setWsStatus(data.status ?? 'draft')
+        setWsStatus(normalizedStatus)
         setSources(data.sources ?? [])
         setDocuments(data.documents ?? [])
         setSubmissions(data.submissions ?? [])
+        if (normalizedStatus === 'pending' && latestSubmission?.id) {
+          setAwaitingResults(true)
+          setPendingSubmissionId(latestSubmission.id)
+        } else {
+          setAwaitingResults(false)
+          setPendingSubmissionId(null)
+        }
       })
       .catch(() => {
         // Fallback to context data
         const ws = workspaces.find(w => w.id === wsId)
-        if (ws) { setWsName(ws.name); setWsStatus(ws.status ?? 'draft') }
+        if (ws) { setWsName(ws.name); setWsStatus(normalizeWorkspaceStatus(ws.status)) }
       })
       .finally(() => setLoading(false))
   }, [wsId])
+
+  useEffect(() => {
+    if (!awaitingResults || isNaN(wsId)) return
+
+    let cancelled = false
+
+    const syncPendingResult = async () => {
+      try {
+        const res = await workspacesAPI.get(wsId)
+        const data = res.data
+        const normalizedStatus = normalizeWorkspaceStatus(data.status)
+        const trackedSubmission = pendingSubmissionId == null
+          ? null
+          : (data.submissions ?? []).find((s: Submission) => s.id === pendingSubmissionId)
+
+        if (cancelled) return
+
+        setWsStatus(normalizedStatus)
+        setSubmissions(data.submissions ?? [])
+        setWorkspaces(prev => prev.map(w =>
+          w.id === wsId
+            ? {
+                ...w,
+                status: normalizedStatus,
+                sources_count: data.sources?.length ?? w.sources_count,
+                documents_count: data.documents?.length ?? w.documents_count,
+                submissions: data.submissions ?? w.submissions,
+              }
+            : w
+        ))
+
+        if (trackedSubmission?.document_results?.length) {
+          setResults(trackedSubmission.document_results)
+          setWarning('')
+          setAwaitingResults(false)
+          setPendingSubmissionId(null)
+          return
+        }
+
+        if (normalizedStatus !== 'pending') {
+          setAwaitingResults(false)
+          setPendingSubmissionId(null)
+        }
+      } catch {
+        // Keep polling silently until we either get results or user leaves the page.
+      }
+    }
+
+    syncPendingResult()
+    const intervalId = setInterval(syncPendingResult, 5000)
+
+    return () => {
+      cancelled = true
+      clearInterval(intervalId)
+    }
+  }, [awaitingResults, pendingSubmissionId, wsId, setWorkspaces])
 
   // Redirect if no valid id
   if (!id || id === 'undefined' || isNaN(wsId)) return (
@@ -216,7 +287,7 @@ export default function WorkspaceDetailPage() {
     catch { setWarning('Failed to delete document') }
   }
 
-  const canSubmit = sources.length >= 2 && documents.length >= 1 && step < 0
+  const canSubmit = sources.length >= 2 && documents.length >= 1 && step < 0 && !awaitingResults && wsStatus !== 'pending'
 
   const handleSubmit = async () => {
     setWarning(''); setStep(0)
@@ -228,23 +299,38 @@ export default function WorkspaceDetailPage() {
       const documentIds = documents.map(d => Number(d.id))
       const res         = await workspacesAPI.submit(wsId, sourceIds, documentIds)
       const submission: Submission = res.data
+      const normalizedSubmissionStatus = normalizeWorkspaceStatus(submission.status)
       setStep(3); await new Promise(r => setTimeout(r, 600))
       setStep(4); await new Promise(r => setTimeout(r, 600))
       setStep(-1)
+      setSubmissions(p => [submission, ...p.filter(s => s.id !== submission.id)])
+      setWsStatus(normalizedSubmissionStatus === 'draft' ? 'pending' : normalizedSubmissionStatus)
+      setWorkspaces(prev => prev.map(w =>
+        w.id === wsId
+          ? {
+              ...w,
+              status: normalizedSubmissionStatus === 'draft' ? 'pending' : normalizedSubmissionStatus,
+              sources_count: sources.length,
+              documents_count: documents.length,
+              submissions: [submission, ...(w.submissions ?? []).filter(s => s.id !== submission.id)],
+            }
+          : w
+      ))
+
       if (submission.document_results?.length > 0) {
         setResults(submission.document_results)
-        setSubmissions(p => [submission, ...p])
         setWsStatus('analyzed')
-        setWorkspaces(prev => prev.map(w =>
-          w.id === wsId
-            ? { ...w, status: 'analyzed', sources_count: sources.length, documents_count: documents.length }
-            : w
-        ))
+        setAwaitingResults(false)
+        setPendingSubmissionId(null)
       } else {
-        setWarning('Submission created but results not available yet.')
+        setWarning('Submission created. Analysis is still running; results will appear automatically.')
+        setAwaitingResults(true)
+        setPendingSubmissionId(submission.id)
       }
     } catch (err: any) {
       setStep(-1)
+      setAwaitingResults(false)
+      setPendingSubmissionId(null)
       setWarning(err.response?.data?.error || err.response?.data?.detail || 'Submission failed. Please try again.')
     }
   }
@@ -254,66 +340,9 @@ export default function WorkspaceDetailPage() {
     if (!results) return
     setDownloading(true)
     try {
-      const { jsPDF } = await import('jspdf')
-      const doc   = new jsPDF()
-      const pageW = doc.internal.pageSize.getWidth()
-      let y = 20
-
-      const addLine = (text: string, size = 11, bold = false, color = '#000000') => {
-        if (y > 270) { doc.addPage(); y = 20 }
-        doc.setFontSize(size)
-        doc.setFont('helvetica', bold ? 'bold' : 'normal')
-        doc.setTextColor(color)
-        const lines = doc.splitTextToSize(text, pageW - 30)
-        doc.text(lines, 15, y)
-        y += (size * 0.6) * lines.length
-      }
-      const gap = (n = 5) => { y += n }
-
-      // Header
-      doc.setFillColor(15, 23, 42)
-      doc.rect(0, 0, pageW, 30, 'F')
-      doc.setFontSize(18); doc.setFont('helvetica', 'bold'); doc.setTextColor('#ffffff')
-      doc.text('GPDetect - Plagiarism Report', 15, 20)
-      y = 38
-
-      addLine(`Workspace: ${wsName}`, 11, true)
-      addLine(`Generated: ${new Date().toLocaleString()}`, 10, false, '#666666')
-      addLine(`Documents analysed: ${results.length}`, 10, false, '#666666')
-      gap(8)
-
-      doc.setDrawColor(200, 200, 200); doc.line(15, y, pageW - 15, y); gap(8)
-
-      // One section per document
-      results.forEach((r, idx) => {
-        addLine(`Document ${idx + 1}: ${r.document_name}`, 13, true)
-        gap(2)
-        const riskLabel = r.plagiarism_score >= 30 ? 'HIGH RISK' : r.plagiarism_score >= 15 ? 'MEDIUM RISK' : 'LOW RISK'
-        const riskColor = r.plagiarism_score >= 30 ? '#ef4444' : r.plagiarism_score >= 15 ? '#f97316' : '#22c55e'
-        addLine(`Score: ${r.plagiarism_score}%  |  Original: ${r.original_percentage}%  |  ${riskLabel}`, 11, false, riskColor)
-        gap(4)
-        addLine('Matched Sources (sorted by similarity):', 10, true)
-        gap(2)
-        if (r.matched_sources.length === 0) {
-          addLine('  No significant matches found.', 10, false, '#666666')
-        } else {
-          r.matched_sources.forEach((ms, i) => {
-            const bar = '█'.repeat(Math.max(1, Math.round(ms.match / 5)))
-            addLine(`  ${i + 1}. ${ms.source}  →  ${ms.match}%  ${bar}`, 10)
-          })
-        }
-        gap(6)
-        if (idx < results.length - 1) {
-          doc.setDrawColor(220, 220, 220); doc.line(15, y, pageW - 15, y); gap(8)
-        }
-      })
-
-      gap(10)
-      doc.setFontSize(9); doc.setTextColor('#aaaaaa')
-      doc.text('Generated by GPDetect - Generative Plagiarism Detection', 15, y)
-      doc.save(`GPDetect-report-${wsName}.pdf`)
+      await downloadPDFReport(wsName, results)
     } catch (e) {
-      setWarning('PDF generation failed. Run: npm install jspdf')
+      setWarning('PDF generation failed.')
     }
     setDownloading(false)
   }
@@ -330,8 +359,8 @@ export default function WorkspaceDetailPage() {
         </button>
         <div className="w-px h-4 bg-border" />
         <h2 className="text-lg font-bold">{wsName || 'Workspace'}</h2>
-        <Badge variant={wsStatus === 'analyzed' ? 'success' : wsStatus === 'pending' ? 'warning' : 'default'}>
-          {wsStatus}
+        <Badge variant={workspaceStatusBadgeVariant(wsStatus)}>
+          {normalizeWorkspaceStatus(wsStatus)}
         </Badge>
       </div>
 

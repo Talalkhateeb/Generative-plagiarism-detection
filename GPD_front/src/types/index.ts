@@ -17,6 +17,7 @@ export interface HighlightSegment {
   text:      string
   highlight: boolean
   source?:   string
+  match_percentage?: number
 }
 
 /** One document's plagiarism result */

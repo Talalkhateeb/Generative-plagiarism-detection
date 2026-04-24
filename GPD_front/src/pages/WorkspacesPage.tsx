@@ -5,6 +5,7 @@ import { Card, Badge, Button, Modal, Input, Alert } from '@/app/components/ui'
 import { useWorkspaces } from '@/app/context/WorkspaceContext'
 import { workspacesAPI } from '@/services/api'
 import type { Workspace } from '@/types'
+import { normalizeWorkspaceStatus, workspaceStatusBadgeVariant } from '@/lib/workspaceStatus'
 
 export default function WorkspacesPage() {
   const navigate = useNavigate()
@@ -120,8 +121,8 @@ export default function WorkspacesPage() {
                 {w.created_at} · {w.sources_count} sources · {w.documents_count} docs
               </p>
               <div className="flex items-center justify-between">
-                <Badge variant={w.status === 'analyzed' ? 'success' : w.status === 'pending' ? 'warning' : 'default'}>
-                  {w.status}
+                <Badge variant={workspaceStatusBadgeVariant(w.status)}>
+                  {normalizeWorkspaceStatus(w.status)}
                 </Badge>
                 <button onClick={() => navigate(`/workspaces/${w.id}`)}
                   className="flex items-center gap-1 text-xs text-primary hover:underline">
