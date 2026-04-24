@@ -84,14 +84,16 @@ DATABASES = {
     # pip install mssql-django
     
 'default': {
-        'ENGINE': 'mssql',
-        'NAME': 'GPD',
-        'HOST': 'DESKTOP-OJ5AKU2\SQLEXPRESS', # e.g., 'localhost\SQLEXPRESS'
-        'PORT': '',  # Leave blank for default port
-        "OPTIONS": {
-    "driver": os.environ.get("DB_ODBC_DRIVER", "ODBC Driver 18 for SQL Server"),
-    "TrustServerCertificate": os.environ.get("DB_TRUST_SERVER_CERTIFICATE", "no"),
-}
+    'ENGINE': os.environ.get('DB_ENGINE', 'mssql'),
+    'NAME':   os.environ.get('DB_NAME', 'GPD'),
+    'HOST':   os.environ.get('DB_HOST', r'DESKTOP-OJ5AKU2\SQLEXPRESS'),
+    'PORT':   os.environ.get('DB_PORT', ''),
+    'USER':   os.environ.get('DB_USER', ''),
+    'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+    'OPTIONS': {
+        'driver': os.environ.get('DB_ODBC_DRIVER', 'ODBC Driver 18 for SQL Server'),
+        'TrustServerCertificate': os.environ.get('DB_TRUST_SERVER_CERTIFICATE', 'no'),
+    },
 }
 
 
