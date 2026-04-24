@@ -88,11 +88,11 @@ DATABASES = {
         'NAME': 'GPD',
         'HOST': 'DESKTOP-OJ5AKU2\SQLEXPRESS', # e.g., 'localhost\SQLEXPRESS'
         'PORT': '',  # Leave blank for default port
-        'OPTIONS': {
-           "driver": os.environ.get("DB_ODBC_DRIVER", "ODBC Driver 17 for SQL Server"), # Ensure this matches your installed version
-            'extra_params': 'Trusted_Connection=yes;', # Key for Windows Auth
-        },
-    }
+        "OPTIONS": {
+    "driver": os.environ.get("DB_ODBC_DRIVER", "ODBC Driver 18 for SQL Server"),
+    "TrustServerCertificate": os.environ.get("DB_TRUST_SERVER_CERTIFICATE", "no"),
+}
+}
 
 
 
