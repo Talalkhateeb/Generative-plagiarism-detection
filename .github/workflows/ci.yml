@@ -109,7 +109,7 @@ jobs:
             FROM sys.objects
             WHERE type = 'UQ'
               AND parent_object_id = OBJECT_ID('token_blacklist_outstandingtoken')
-              AND name LIKE ''UQ__token_bl__%'';
+              AND name LIKE 'UQ__token_bl__%';
             IF LEN(@sql) > 0
               EXEC sp_executesql @sql;
             ELSE
