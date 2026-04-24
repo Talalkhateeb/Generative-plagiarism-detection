@@ -86,7 +86,37 @@ jobs:
           echo "❌ SQL Server never became ready"
           exit 1
 
-      - name: Run migrations
+      - name: Run migrations up to token_blacklist 0007
+        working-directory: GPD_back
+        env:
+          DB_ENGINE: mssql
+          DB_NAME: tempdb
+          DB_USER: sa
+          DB_PASSWORD: YourStrong!Pass123
+          DB_HOST: 127.0.0.1
+          DB_PORT: 1433
+          DB_ODBC_DRIVER: "ODBC Driver 18 for SQL Server"
+          DB_TRUST_SERVER_CERTIFICATE: "yes"
+        run: python manage.py migrate token_blacklist 0007_auto_20171017_2214
+
+      - name: Drop unique constraint before bigautofield migration
+        run: |
+          /opt/mssql-tools18/bin/sqlcmd -S localhost,1433 -U sa -P 'YourStrong!Pass123' -C -b -Q "
+            USE tempdb;
+            DECLARE @sql NVARCHAR(MAX) = '';
+            SELECT @sql = @sql +
+              'ALTER TABLE [token_blacklist_outstandingtoken] DROP CONSTRAINT [' + name + '];'
+            FROM sys.objects
+            WHERE type = 'UQ'
+              AND parent_object_id = OBJECT_ID('token_blacklist_outstandingtoken')
+              AND name LIKE ''UQ__token_bl__%'';
+            IF LEN(@sql) > 0
+              EXEC sp_executesql @sql;
+            ELSE
+              PRINT ''No constraint found - nothing to drop'';
+          "
+
+      - name: Run remaining migrations
         working-directory: GPD_back
         env:
           DB_ENGINE: mssql
