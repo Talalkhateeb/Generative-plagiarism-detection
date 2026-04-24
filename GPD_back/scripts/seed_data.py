@@ -30,21 +30,21 @@ enterprise = Plan.objects.get(name='Enterprise')
 pro        = Plan.objects.get(name='Pro')
 
 # Admin
-if not User.objects.filter(email='admin@GPD.ai').exists():
+if not User.objects.filter(email='admin@gmail.com').exists():
     admin = User.objects.create_superuser(
-        email='admin@GPD.ai', name='Alex Morgan',
-        password='admin123', role='admin', plan=enterprise
+        email='admin@gmail.com', name='Tala Alkhateeb',
+        password='talaispretty', role='admin', plan=enterprise
     )
     print(f'Created admin: {admin}')
 
 # Regular user
-if not User.objects.filter(email='user@GPD.ai').exists():
+if not User.objects.filter(email='user@gmail.com').exists():
     user = User.objects.create_user(
-        email='user@GPD.ai', name='Jordan Lee',
-        password='user123', role='user', plan=pro
+        email='user@gmail.com', name='Farah Alkayyem',
+        password='farah123', role='user', plan=pro
     )
     print(f'Created user: {user}')
 
 print('\nSeed complete!')
-print('Admin: admin@GPD.ai / admin123')
-print('User:  user@GPD.ai  / user123')
+print('Admin: admin@gmail.com / talaispretty')
+print('User:  user@gmail.com  / farah123')
