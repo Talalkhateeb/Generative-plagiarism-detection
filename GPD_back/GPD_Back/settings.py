@@ -73,6 +73,7 @@ TEMPLATES = [{
 WSGI_APPLICATION = 'GPD_Back.wsgi.application'
 
 # ── Database ─────────────────────────────────────────────────────────────────
+_is_ci = os.environ.get('CI', 'false').lower() == 'true'
 DATABASES = {
     # ── SQLite (development) ──────────────────────────────────
     # 'default': {
@@ -82,8 +83,8 @@ DATABASES = {
 
     # ── SQL Server (production) ───────────────────────────────
     # pip install mssql-django
-   'default': {
-        'ENGINE': os.environ.get('DB_ENGINE', 'mssql'),
+    'default': {
+        'ENGINE':   os.environ.get('DB_ENGINE', 'mssql'),
         'NAME':     os.environ.get('DB_NAME', 'GPD'),
         'HOST':     os.environ.get('DB_HOST', r'DESKTOP-OJ5AKU2\SQLEXPRESS'),
         'PORT':     os.environ.get('DB_PORT', ''),
@@ -91,12 +92,9 @@ DATABASES = {
         'PASSWORD': os.environ.get('DB_PASSWORD', ''),
         'OPTIONS': {
             'driver': os.environ.get('DB_ODBC_DRIVER', 'ODBC Driver 18 for SQL Server'),
-            'TrustServerCertificate': 'yes',
-            'Encrypt': 'yes',
+            'extra_params': 'TrustServerCertificate=yes;Encrypt=yes;' if _is_ci else '',
         },
     }
-
-
 
     # ── PostgreSQL (alternative) ──────────────────────────────
     # pip install psycopg2-binary
