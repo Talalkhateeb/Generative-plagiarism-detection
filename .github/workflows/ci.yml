@@ -91,6 +91,7 @@ jobs:
           DB_PASSWORD: YourStrong!Pass123
           DB_HOST: 127.0.0.1
           DB_PORT: 1433
+          DB_ODBC_DRIVER: "ODBC Driver 18 for SQL Server"
         run: python manage.py migrate
 
       - name: Run tests
@@ -102,6 +103,7 @@ jobs:
           DB_PASSWORD: YourStrong!Pass123
           DB_HOST: localhost
           DB_PORT: 1433
+          DB_ODBC_DRIVER: "ODBC Driver 18 for SQL Server"
         run: pytest tests/ -v
     # ═════════════════════════════════════════════
   # 🎭 3. E2E TESTING (PLAYWRIGHT)
