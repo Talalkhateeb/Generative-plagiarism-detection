@@ -101,7 +101,8 @@ jobs:
 
       - name: Drop unique constraint before bigautofield migration
         run: |
-          /opt/mssql-tools18/bin/sqlcmd -S localhost,1433 -U sa -P 'YourStrong!Pass123' -C -b -Q "
+          /opt/mssql-tools18/bin/sqlcmd -S localhost,1433 -U sa \
+            -P 'YourStrong!Pass123' -C -b -Q "
             USE tempdb;
             DECLARE @sql NVARCHAR(MAX) = '';
             SELECT @sql = @sql +
@@ -112,10 +113,7 @@ jobs:
               AND name LIKE 'UQ__token_bl__%';
             IF LEN(@sql) > 0
               EXEC sp_executesql @sql;
-            ELSE
-              PRINT ''No constraint found - nothing to drop'';
           "
-
       - name: Run remaining migrations
         working-directory: GPD_back
         env:
