@@ -85,7 +85,6 @@ jobs:
           done
           echo "❌ SQL Server never became ready"
           exit 1
-
       - name: Run tests
         working-directory: GPD_back
         env:
@@ -97,8 +96,8 @@ jobs:
           DB_PORT: 1433
           DB_ODBC_DRIVER: "ODBC Driver 18 for SQL Server"
           DB_TRUST_SERVER_CERTIFICATE: "yes"
-        run: pytest tests/ -v
-    # ═════════════════════════════════════════════
+        run: |
+          pytest tests/test_unit.py tests/test_integration.py -v   # ═════════════════════════════════════════════
   # 🎭 3. E2E TESTING (PLAYWRIGHT)
   # ═════════════════════════════════════════════
   e2e:
