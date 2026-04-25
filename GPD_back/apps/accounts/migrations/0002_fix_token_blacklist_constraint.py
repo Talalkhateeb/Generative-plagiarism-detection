@@ -3,25 +3,30 @@ from django.db import migrations, connection
 
 def drop_token_blacklist_constraints(apps, schema_editor):
     """
-    SQL Server auto-generates unique constraints that block
-    column type changes. Drop them before simplejwt 0008
-    tries to alter token_id to BigAutoField.
-    Only executes on SQL Server — safe no-op on SQLite/PostgreSQL.
+    SQL Server blocks altering a column that has a dependent unique
+    constraint. This drops ALL unique constraints on the
+    token_blacklist_outstandingtoken table before 0008 runs.
     """
     if connection.vendor != 'microsoft':
         return
 
     with connection.cursor() as cursor:
-        cursor.execute("""
-            USE tempdb;
+        # Get the actual database name Django is connected to
+        cursor.execute("SELECT DB_NAME()")
+        row = cursor.fetchone()
+        db_name = row[0] if row else 'tempdb'
+
+        # Drop all unique constraints on the table using
+        # fully qualified name to avoid context issues
+        cursor.execute(f"""
             DECLARE @sql NVARCHAR(MAX) = '';
             SELECT @sql = @sql +
-                'ALTER TABLE [token_blacklist_outstandingtoken]
-                 DROP CONSTRAINT [' + name + '];'
-            FROM sys.objects
-            WHERE type = 'UQ'
-              AND parent_object_id =
-                  OBJECT_ID('token_blacklist_outstandingtoken');
+                'ALTER TABLE [{db_name}].[dbo].[token_blacklist_outstandingtoken]
+                 DROP CONSTRAINT [' + o.name + '];'
+            FROM [{db_name}].sys.objects o
+            WHERE o.type = 'UQ'
+              AND o.parent_object_id =
+                  OBJECT_ID('[{db_name}].[dbo].[token_blacklist_outstandingtoken]');
             IF LEN(@sql) > 0
                 EXEC sp_executesql @sql;
         """)
@@ -30,9 +35,7 @@ def drop_token_blacklist_constraints(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        # Your previous accounts migration
         ("accounts", "0001_initial"),
-        # Must run AFTER 0007, BEFORE 0008
         ("token_blacklist", "0007_auto_20171017_2214"),
     ]
 
