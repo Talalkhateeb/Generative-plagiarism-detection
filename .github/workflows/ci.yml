@@ -85,6 +85,19 @@ jobs:
           done
           echo "❌ SQL Server never became ready"
           exit 1
+      - name: Run migrations
+        working-directory: GPD_back
+        env:
+          DB_ENGINE: mssql
+          DB_NAME: tempdb
+          DB_USER: sa
+          DB_PASSWORD: YourStrong!Pass123
+          DB_HOST: 127.0.0.1
+          DB_PORT: 1433
+          DB_ODBC_DRIVER: "ODBC Driver 18 for SQL Server"
+          DB_TRUST_SERVER_CERTIFICATE: "yes"
+        run: python manage.py migrate
+
       - name: Run tests
         working-directory: GPD_back
         env:
