@@ -89,7 +89,7 @@ jobs:
         working-directory: GPD_back
         env:
           DB_ENGINE: mssql
-          DB_NAME: master
+          DB_NAME: tempdb
           DB_USER: sa
           DB_PASSWORD: YourStrong!Pass123
           DB_HOST: localhost
