@@ -18,6 +18,7 @@ The repository is easiest to work with when you treat these folders as the real 
 
 ```text
 .
+|-- archive/          # Backup zip files and old helper artifacts
 |-- GPD_back/         # Django backend
 |-- GPD_front/        # Frontend
 `-- storage_service/  # Standalone FastAPI + MinIO microservice

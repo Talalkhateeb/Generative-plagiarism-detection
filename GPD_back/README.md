@@ -6,7 +6,7 @@
 pip install -r requirements.txt
 python manage.py makemigrations accounts plans workspaces submissions results
 python manage.py migrate
-python manage.py shell < seed_data.py
+python manage.py shell < scripts/seed_data.py
 python manage.py runserver 8000
 ```
 
@@ -25,6 +25,7 @@ This folder contains the Django backend only.
 - `apps/workspaces/`: workspaces, source files, submitted documents
 - `apps/submissions/`: submission history
 - `apps/results/`: analysis results and reporting
+- `scripts/`: backend helper scripts such as seed data
 - `GPD_Back/settings.py`: database, JWT, email, storage and AI service URLs
 
 ## Architecture
@@ -34,6 +35,8 @@ GPD_back/
 |-- manage.py
 |-- minio_client.py
 |-- seed_data.py
+|-- scripts/
+|   `-- seed_data.py
 |-- GPD_Back/
 |   |-- settings.py
 |   `-- urls.py
@@ -46,4 +49,8 @@ GPD_back/
 
 storage_service/
 `-- main.py
+
+archive/
+|-- backend/
+`-- frontend/
 ```
