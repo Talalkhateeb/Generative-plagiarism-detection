@@ -22,17 +22,18 @@ export default function DashboardPage() {
   const [checksUsed,  setChecksUsed]  = useState(0)
   const [planLimit,   setPlanLimit]   = useState<number | null>(null)
   const [planName,    setPlanName]    = useState(user?.plan ?? '—')
+  const [userHistory, setUserHistory] = useState<any[]>([])
 
-  // Collect all plagiarism scores from document_results (new structure)
-  const allScores = workspaces.flatMap(w =>
-    (w.submissions ?? []).flatMap((s: any) =>
-      (s.document_results ?? []).map((r: any) => r.plagiarism_score)
-    ).filter((v: any) => v !== undefined && v !== null)
-  )
+  // Compute stats from actual submission history
+  const allScores = userHistory.flatMap((sub: any) =>
+    (sub.document_results ?? []).map((r: any) => r.plagiarism_score)
+  ).filter((v: any) => v !== undefined && v !== null)
+  
   const avgScore = allScores.length
     ? (allScores.reduce((a: number, b: number) => a + b, 0) / allScores.length).toFixed(1)
     : '—'
-  const totalSubs = workspaces.reduce((s, w) => s + (w.submissions?.length ?? 0), 0)
+  
+  const totalSubs = userHistory.filter((sub: any) => sub.status === 'completed').length
 
   useEffect(() => {
     if (isAdmin) {
@@ -51,10 +52,11 @@ export default function DashboardPage() {
         })
         .catch(() => {}) // سيرفر مو شغّال — تبقى أصفار
     } else {
-      // User: جيب plan info و checks used
+      // User: جيب plan info و checks used و history
       Promise.all([submissionsAPI.history(), plansAPI.list()])
         .then(([histRes, plRes]) => {
           const history = histRes.data.results ?? histRes.data
+          setUserHistory(history)
           setChecksUsed(history.length)
           const plans   = plRes.data.results ?? plRes.data
           const myPlan  = plans.find((p: any) => p.name === user?.plan)
@@ -63,7 +65,7 @@ export default function DashboardPage() {
             setPlanName(myPlan.name)
           }
         })
-        .catch(() => {}) // fallback — تبقى 0
+        .catch(() => {})
     }
   }, [isAdmin, user?.plan])
 

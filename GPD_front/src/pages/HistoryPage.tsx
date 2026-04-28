@@ -41,8 +41,13 @@ function SubmissionRow({ h, onOpen }: { h: any; onOpen: () => void }) {
           }
         </div>
         <div className="col-span-2">
-          <Badge variant={h.status === 'completed' ? 'success' : 'warning'}>
-            {h.status}
+          <Badge variant={
+            h.status === 'completed' ? 'success' :
+            h.status === 'processing' ? 'warning' :
+            h.status === 'pending' ? 'warning' :
+            'default'
+          }>
+            {h.status === 'processing' ? '⏳ Processing…' : h.status}
           </Badge>
         </div>
         <div className="col-span-2 flex justify-end">
@@ -132,10 +137,29 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    submissionsAPI.history()
-      .then(res => setHistory(res.data.results ?? res.data))
-      .catch(() => setHistory([]))
-      .finally(() => setLoading(false))
+    const loadHistory = () => {
+      setLoading(true)
+      submissionsAPI.history()
+        .then(res => setHistory(res.data.results ?? res.data))
+        .catch(() => setHistory([]))
+        .finally(() => setLoading(false))
+    }
+    
+    loadHistory()
+  }, [])
+
+  // Refresh history when returning to page
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        submissionsAPI.history()
+          .then(res => setHistory(res.data.results ?? res.data))
+          .catch(() => {})
+      }
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [])
 
   if (loading) return (

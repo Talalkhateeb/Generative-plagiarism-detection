@@ -171,6 +171,13 @@ export default function WorkspaceDetailPage() {
       .finally(() => setLoading(false))
   }, [wsId])
 
+  // Auto-load last completed result on page entry
+  useEffect(() => {
+    if (loading || wsId === 0 || results) return
+    const lastCompleted = submissions.find((s: any) => s.status === 'completed' && s.document_results?.length > 0)
+    if (lastCompleted) setResults(lastCompleted.document_results)
+  }, [loading, submissions.length])
+
   // Redirect if no valid id
   if (!id || id === 'undefined' || isNaN(wsId)) return (
     <div className="text-center py-20">
@@ -218,6 +225,45 @@ export default function WorkspaceDetailPage() {
 
   const canSubmit = sources.length >= 2 && documents.length >= 1 && step < 0
 
+  // Polling function for result retrieval
+  const pollForResults = async () => {
+    let attempts = 0
+    const maxAttempts = 120
+    const pollInterval = 2000
+
+    const poll = async () => {
+      try {
+        const res = await workspacesAPI.results(wsId)
+        if (res.status === 200 && res.data?.document_results) {
+          setResults(res.data.document_results)
+          setSubmissions(p => [res.data, ...p])
+          setWsStatus('analyzed')
+          setWorkspaces(prev => prev.map(w =>
+            w.id === wsId
+              ? { ...w, status: 'analyzed', sources_count: sources.length, documents_count: documents.length }
+              : w
+          ))
+          return
+        }
+      } catch (err: any) {
+        if (err.response?.status === 202) {
+          attempts++
+          if (attempts < maxAttempts) {
+            setTimeout(poll, pollInterval)
+            return
+          } else {
+            setWarning('Analysis is taking longer than expected. Check back later.')
+            return
+          }
+        }
+        setWarning('Failed to retrieve results. Please try again.')
+      }
+    }
+
+    setWarning('')
+    poll()
+  }
+
   const handleSubmit = async () => {
     setWarning(''); setStep(0)
     try {
@@ -230,8 +276,9 @@ export default function WorkspaceDetailPage() {
       const submission: Submission = res.data
       setStep(3); await new Promise(r => setTimeout(r, 600))
       setStep(4); await new Promise(r => setTimeout(r, 600))
-      setStep(-1)
+      
       if (submission.document_results?.length > 0) {
+        setStep(-1)
         setResults(submission.document_results)
         setSubmissions(p => [submission, ...p])
         setWsStatus('analyzed')
@@ -241,7 +288,8 @@ export default function WorkspaceDetailPage() {
             : w
         ))
       } else {
-        setWarning('Submission created but results not available yet.')
+        setStep(-1)
+        pollForResults()
       }
     } catch (err: any) {
       setStep(-1)
@@ -410,6 +458,19 @@ export default function WorkspaceDetailPage() {
               {STEPS.map((_, i) => (
                 <div key={i} className={`h-1.5 rounded-full transition-all duration-500 ${i <= step ? 'bg-primary w-10' : 'bg-secondary w-5'}`} />
               ))}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Analyzing (Polling) */}
+      {step < 0 && warning === '' && !results && submissions.length > 0 && (
+        <Card className="p-10">
+          <div className="flex flex-col items-center gap-5 text-center">
+            <div className="w-14 h-14 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+            <div>
+              <p className="font-semibold">Analyzing Documents…</p>
+              <p className="text-xs text-muted-foreground mt-1">This may take up to 4 minutes. Please don't close this window.</p>
             </div>
           </div>
         </Card>
