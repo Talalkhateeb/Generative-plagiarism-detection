@@ -4,3 +4,4 @@ minio==7.2.7
 python-multipart==0.0.9
 pydantic==2.6.4
 requests==2.31.0
+python-dotenv

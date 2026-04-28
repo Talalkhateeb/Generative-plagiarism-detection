@@ -26,20 +26,24 @@ from typing import Optional, List
 from datetime import timedelta
 import uuid, os, json, io
 import redis
+from dotenv import load_dotenv
+from pathlib import Path
+from pathlib import Path
+load_dotenv(Path(__file__).parent / ".env")
 app = FastAPI(title="GPD Storage Service", version="1.0.0")
 
 # ── MinIO client ──────────────────────────────────────────────────────────────
 MINIO_ENDPOINT   = os.getenv("MINIO_ENDPOINT",   "minio.gpdetect.com")
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "admin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "password123")
-MINIO_BUCKET     = os.getenv("MINIO_BUCKET",     "veritas")
+MINIO_BUCKET     = os.getenv("MINIO_BUCKET",     "gpdai")
 
 client = Minio(
     MINIO_ENDPOINT,
     access_key=MINIO_ACCESS_KEY,
     secret_key=MINIO_SECRET_KEY,
-    secure=True,
-   #secure=False,
+    #secure=True,
+   secure=False,
 )
 
 # In-memory result store (replace with Redis or DB in production)
