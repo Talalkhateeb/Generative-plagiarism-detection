@@ -1,0 +1,13 @@
+qdrant-client
+sentence-transformers
+nltk
+fastapi
+uvicorn
+pdfplumber
+python-docx
+<<<<<<< HEAD
+python-multipart
+=======
+python-multipart
+requests
+>>>>>>> origin/ai-dev

@@ -1,0 +1,77 @@
+<<<<<<< HEAD
+# Python / Django
+__pycache__/
+pycache/
+=======
+# Python
+__pycache__/
+>>>>>>> origin/ai-dev
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+<<<<<<< HEAD
+*.egg-info/
+.pytest_cache/
+dist/
+build/
+
+# Environment and secrets
+.env
+.env.*
+*.env
+.venv/
+venv/
+env/
+
+# Local tooling
+.claude/
+.vscode/
+.idea/
+*.swp
+*.swo
+cloudflared/
+
+# Databases and generated app data
+db.sqlite3
+staticfiles/
+media/
+storage_service/storage/
+qdrant_storage/
+
+# Node / frontend
+node_modules/
+.cache/
+*.local
+*.tsbuildinfo
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+=======
+
+# Virtual environment
+venv/
+.env
+.venv
+
+# Model cache
+.cache/
+*.pt
+*.bin
+
+# Qdrant storage
+qdrant_storage/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+>>>>>>> origin/ai-dev
