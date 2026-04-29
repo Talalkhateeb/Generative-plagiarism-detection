@@ -1,0 +1,60 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: gpd_rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672" # AMQP — Celery connects here
+      - "15672:15672" # Management UI → http://localhost:15672
+    environment:
+      RABBITMQ_DEFAULT_USER: gpd
+      RABBITMQ_DEFAULT_PASS: gpd_pass
+      RABBITMQ_DEFAULT_VHOST: gpd_vhost
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis (result backend for Celery + Storage Service cache) ─────
+  redis:
+    image: redis:alpine
+    container_name: gpd_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ── MinIO (object storage — replaces raw file disk) ───────────────
+  minio:
+    image: minio/minio:latest
+    container_name: gpd_minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000" # S3 API — storage service connects here
+      - "9001:9001" # Web console → http://localhost:9001
+    environment:
+      MINIO_ROOT_USER: gpd_admin
+      MINIO_ROOT_PASSWORD: gpd_minio_pass
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  rabbitmq_data:
+  redis_data:
+  minio_data:
