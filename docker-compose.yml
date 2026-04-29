@@ -1,60 +1,159 @@
+version: "3.9"
+
 services:
+
+  # ── SQL Server ──────────────────────────────────────────────────────────────
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: gpd_sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "GPD_Password123!"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "GPD_Password123!", "-Q", "SELECT 1"]
+      interval: 10s
+      retries: 10
+      start_period: 30s
+
+  # ── RabbitMQ ────────────────────────────────────────────────────────────────
   rabbitmq:
     image: rabbitmq:3-management
     container_name: gpd_rabbitmq
-    restart: unless-stopped
     ports:
-      - "5672:5672" # AMQP — Celery connects here
-      - "15672:15672" # Management UI → http://localhost:15672
-    environment:
-      RABBITMQ_DEFAULT_USER: gpd
-      RABBITMQ_DEFAULT_PASS: gpd_pass
-      RABBITMQ_DEFAULT_VHOST: gpd_vhost
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
+      - "5672:5672"
+      - "15672:15672"   # management UI → http://localhost:15672 (guest/guest)
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 10s
-      timeout: 5s
       retries: 5
 
-  # ── Redis (result backend for Celery + Storage Service cache) ─────
+  # ── Redis ───────────────────────────────────────────────────────────────────
   redis:
-    image: redis:alpine
+    image: redis:7-alpine
     container_name: gpd_redis
-    restart: unless-stopped
     ports:
       - "6379:6379"
-    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
-    volumes:
-      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
+      interval: 5s
       retries: 5
 
-  # ── MinIO (object storage — replaces raw file disk) ───────────────
+  # ── MinIO ───────────────────────────────────────────────────────────────────
   minio:
     image: minio/minio:latest
     container_name: gpd_minio
-    restart: unless-stopped
-    ports:
-      - "9000:9000" # S3 API — storage service connects here
-      - "9001:9001" # Web console → http://localhost:9001
-    environment:
-      MINIO_ROOT_USER: gpd_admin
-      MINIO_ROOT_PASSWORD: gpd_minio_pass
     command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"   # MinIO console → http://localhost:9001
     volumes:
       - minio_data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 10s
-      timeout: 5s
       retries: 5
 
+  # ── MinIO bucket setup (runs once then exits) ───────────────────────────────
+  minio_setup:
+    image: minio/mc:latest
+    container_name: gpd_minio_setup
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 minioadmin minioadmin &&
+        mc mb --ignore-existing local/veritas &&
+        mc anonymous set download local/veritas &&
+        echo 'Bucket veritas ready'
+      "
+
+  # ── Django Backend ──────────────────────────────────────────────────────────
+  django:
+    build:
+      context: ./GPD_back
+      dockerfile: Dockerfile
+    container_name: gpd_django
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    env_file:
+      - ./GPD_back/.env.docker
+    ports:
+      - "8000:8000"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./GPD_back:/app
+
+  # ── Celery Worker ───────────────────────────────────────────────────────────
+  celery:
+    build:
+      context: ./GPD_back
+      dockerfile: Dockerfile
+    container_name: gpd_celery
+    command: celery -A GPD_Back worker -l info
+    env_file:
+      - ./GPD_back/.env.docker
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      sqlserver:
+        condition: service_healthy
+    volumes:
+      - ./GPD_back:/app
+
+  # ── Storage Microservice ────────────────────────────────────────────────────
+  storage:
+    build:
+      context: ./storage_service
+      dockerfile: Dockerfile
+    container_name: gpd_storage
+    command: uvicorn main:app --host 0.0.0.0 --port 8002 --reload
+    environment:
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: veritas
+      REDIS_HOST: redis
+    ports:
+      - "8002:8002"
+    depends_on:
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ── React Frontend ──────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./GPD_front
+      dockerfile: Dockerfile
+    container_name: gpd_frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - django
+    environment:
+      - VITE_API_URL=http://localhost:8000/api
+
 volumes:
-  rabbitmq_data:
-  redis_data:
+  sqlserver_data:
   minio_data:
