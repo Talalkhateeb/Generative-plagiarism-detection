@@ -34,12 +34,16 @@ This folder contains the Django backend only.
 GPD_back/
 |-- manage.py
 |-- minio_client.py
-|-- seed_data.py
 |-- scripts/
 |   `-- seed_data.py
 |-- GPD_Back/
 |   |-- settings.py
 |   `-- urls.py
+|-- tests/
+|   |-- test_api.py
+|   |-- test_integration.py
+|   |-- test_performance.py
+|   `-- test_unit.py
 `-- apps/
     |-- accounts/
     |-- plans/
@@ -49,8 +53,4 @@ GPD_back/
 
 storage_service/
 `-- main.py
-
-archive/
-|-- backend/
-`-- frontend/
 ```

@@ -13,6 +13,7 @@ mssql-django>=1.4
 django-cors-headers>=4.3
 django-filter>=23.0
 Pillow>=10.0
+requests>=2.31
 
 # Task Queue
 celery>=5.3

@@ -1,6 +1,6 @@
 """
 Run this script to seed initial data:
-  python manage.py shell < seed_data.py
+  python manage.py shell < scripts/seed_data.py
 
 Creates:
   - 3 Plans (Starter, Pro, Enterprise)

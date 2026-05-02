@@ -1,8 +1,7 @@
-# Python / Django
-__pycache__/
-pycache/
 # Python
 __pycache__/
+**/__pycache__/
+pycache/
 *.py[cod]
 *.pyo
 *.pyd
@@ -32,11 +31,13 @@ cloudflared/
 db.sqlite3
 staticfiles/
 media/
+storage/
 storage_service/storage/
 qdrant_storage/
 
 # Node / frontend
 node_modules/
+GPD_front/.vite/
 .cache/
 *.local
 *.tsbuildinfo
@@ -46,26 +47,10 @@ node_modules/
 Thumbs.db
 desktop.ini
 
-# Virtual environment
-venv/
-.env
-.venv
-
 # Model cache
 .cache/
 *.pt
 *.bin
 
-# Qdrant storage
-qdrant_storage/
-
 # Jupyter
 .ipynb_checkpoints/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# IDE
-.vscode/
-.idea/
