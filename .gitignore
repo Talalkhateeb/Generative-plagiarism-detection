@@ -1,16 +1,12 @@
-<<<<<<< HEAD
 # Python / Django
 __pycache__/
 pycache/
-=======
 # Python
 __pycache__/
->>>>>>> origin/ai-dev
 *.py[cod]
 *.pyo
 *.pyd
 .Python
-<<<<<<< HEAD
 *.egg-info/
 .pytest_cache/
 dist/
@@ -49,7 +45,6 @@ node_modules/
 .DS_Store
 Thumbs.db
 desktop.ini
-=======
 
 # Virtual environment
 venv/
@@ -74,4 +69,3 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
->>>>>>> origin/ai-dev
