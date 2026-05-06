@@ -70,16 +70,25 @@ def test_login_endpoint_returns_tokens_for_valid_user(api_client, user):
 
 
 @pytest.mark.django_db
-def test_login_endpoint_blocks_inactive_account(api_client, inactive_user):
-    response = api_client.post(
-        "/api/auth/login/",
-        {"email": inactive_user.email, "password": "StrongPass123!"},
-        format="json",
+def test_login_endpoint_blocks_inactive_account(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        email='inactive@test.com',
+        password='testpass123',
+        name='Inactive User',
+        status='inactive',
+        is_active=False,
     )
-
-    assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert response.data["detail"] == "No active account found with the given credentials"
-
+    
+    response = client.post('/api/auth/login/', {
+        'email': 'inactive@test.com',
+        'password': 'testpass123',
+    }, content_type='application/json')
+    
+    # ✅ Change this line — your LoginView.post() returns 400 now
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    
+    # ✅ Also assert the message so the test is meaningful
+    assert 'deactivated' in response.data['detail'].lower()
 
 @pytest.mark.django_db
 def test_me_endpoint_requires_authentication(api_client):
