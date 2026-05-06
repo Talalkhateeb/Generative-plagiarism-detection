@@ -148,7 +148,7 @@ test("login flow shows the dashboard for valid credentials", async ({ page }) =>
   await page.goto("/login");
   await page.getByPlaceholder("you@example.com").fill("test.user@example.com");
   await page.locator('input[type="password"]').first().fill("StrongPass123!");
-  await page.getByRole("button", { name: "Log In" }).click();
+  await page.getByRole("button", { name: "Log In" }).nth(1).click();
 
   await expect(page.getByText("Welcome, Test!")).toBeVisible();
 });
@@ -198,6 +198,7 @@ test("admin can search a user and set status to inactive", async ({ page }) => {
   ];
 
   await seedAuth(page, admin);
+  await mockCommonUserApis(page, admin);
   await page.route("**/api/plans/**", async (route) => {
     await route.fulfill({ json: [starterPlan] });
   });
