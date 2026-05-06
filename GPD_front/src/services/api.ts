@@ -117,7 +117,7 @@ export const submissionsAPI = {
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
 export const adminAPI = {
-  listAccounts:  () => api.get('/admin/accounts/'),
+  listAccounts:  (params?: { search?: string }) => api.get('/admin/accounts/', { params }),
   getAccount:    (id: number) => api.get(`/admin/accounts/${id}/`),
   updateStatus:  (id: number, status: 'active' | 'inactive') =>
     api.patch(`/admin/accounts/${id}/`, { status }),

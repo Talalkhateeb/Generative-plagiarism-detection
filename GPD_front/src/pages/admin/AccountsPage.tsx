@@ -1,19 +1,34 @@
 import { useEffect, useState } from 'react'
-import { Pencil } from 'lucide-react'
-import { Card, Badge, Button, Modal, Alert } from '@/app/components/ui'
-import type { User } from '@/types'
+import { Pencil, Search } from 'lucide-react'
+import { Card, Badge, Button, Modal, Alert, Input } from '@/app/components/ui'
 import { adminAPI } from '@/services/api'
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<any[]>([])
   const [editing, setEditing] = useState<any | null>(null)
   const [saved, setSaved] = useState(false)
+  const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
+  const [listLoading, setListLoading] = useState(false)
+  const [listError, setListError] = useState('')
   const [saveError, setSaveError] = useState('')
 
   useEffect(() => {
-    adminAPI.listAccounts().then(res => setAccounts(res.data.results ?? res.data)).catch(() => {})
-  }, [])
+    const timeoutId = window.setTimeout(async () => {
+      setListLoading(true)
+      setListError('')
+      try {
+        const res = await adminAPI.listAccounts({ search: query.trim() || undefined })
+        setAccounts(res.data.results ?? res.data)
+      } catch {
+        setListError('Failed to load accounts')
+      } finally {
+        setListLoading(false)
+      }
+    }, 300)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [query])
 
   const save = async () => {
     if (!editing) return
@@ -37,10 +52,26 @@ export default function AccountsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-xl font-bold">Accounts Management</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">{accounts.length} registered users</p>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {query.trim() ? `${accounts.length} matching users` : `${accounts.length} registered users`}
+          </p>
         </div>
-        {saved && <Alert variant="success">Account updated successfully</Alert>}
+        <div className="flex items-center gap-3 flex-wrap">
+          {saved && <Alert variant="success">Account updated successfully</Alert>}
+          <div className="relative w-full sm:w-80">
+            <Search size={15} className="absolute left-3 top-[38px] text-muted-foreground pointer-events-none" />
+            <Input
+              label="Search"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Name or email"
+              className="pl-9"
+            />
+          </div>
+        </div>
       </div>
+
+      {listError && <Alert variant="error">{listError}</Alert>}
 
       <Card>
         <div className="px-5 py-3 border-b border-border grid grid-cols-12 gap-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -76,6 +107,18 @@ export default function AccountsPage() {
             </div>
           </div>
         ))}
+
+        {!listLoading && accounts.length === 0 && (
+          <div className="px-5 py-10 text-center text-sm text-muted-foreground">
+            {query.trim() ? 'No users matched that name or email.' : 'No accounts found.'}
+          </div>
+        )}
+
+        {listLoading && (
+          <div className="px-5 py-10 text-center text-sm text-muted-foreground">
+            Searching accounts...
+          </div>
+        )}
       </Card>
 
       {/* Edit Modal — Admin can ONLY change status */}
