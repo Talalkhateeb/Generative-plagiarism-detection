@@ -225,3 +225,51 @@ class DeleteAccountView(APIView):
             )
         request.user.delete()
         return Response({'message': 'Account deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
+
+
+# ── Upgrade Plan ──────────────────────────────────────────────────────────────
+
+class UpgradePlanView(APIView):
+    """
+    PATCH /api/auth/me/upgrade-plan/
+    User upgrades their subscription plan.
+    Body: { plan_id: number }
+    Response: { success: true, message: "...", user: {...} }
+    """
+    permission_classes = [IsAuthenticated, IsActiveUser]
+
+    def patch(self, request):
+        from apps.plans.models import Plan
+        
+        plan_id = request.data.get('plan_id')
+        if not plan_id:
+            return Response(
+                {'error': 'plan_id is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            new_plan = Plan.objects.get(pk=plan_id, is_active=True)
+        except Plan.DoesNotExist:
+            return Response(
+                {'error': 'Selected plan does not exist.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Update user's plan
+        request.user.plan = new_plan
+        request.user.save(update_fields=['plan'])
+        
+        return Response({
+            'success': True,
+            'message': f'Plan upgraded to {new_plan.name}.',
+            'user': {
+                'id':         request.user.id,
+                'name':       request.user.name,
+                'email':      request.user.email,
+                'role':       request.user.role,
+                'status':     request.user.status,
+                'plan':       new_plan.name,
+                'date_joined': request.user.created_at.strftime('%Y-%m-%d'),
+            }
+        }, status=status.HTTP_200_OK)

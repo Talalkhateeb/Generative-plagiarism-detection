@@ -1,0 +1,68 @@
+version: "3.8"
+
+services:
+  backend:
+    build: ./GPD_back
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+      - rabbitmq
+      - qdrant
+      - minio
+
+  ai:
+    build: ./AI
+    ports:
+      - "8001:8001"
+
+  celery-worker:
+    build: ./GPD_back
+    command: celery -A app.celery worker --loglevel=info
+    depends_on:
+      - redis
+      - rabbitmq
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  frontend:
+    build: ./GPD_front
+    ports:
+      - "3000:3000"
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant-db
+    ports:
+      - "6333:6333"
+    environment:
+      - QDRANT_API_KEY=dev-key
+    volumes:
+      - qdrant_storage:/qdrant/storage
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio-storage
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_storage:/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis-cache
+    ports:
+      - "6380:6379"
+
+volumes:
+  qdrant_storage:
+  minio_storage:
