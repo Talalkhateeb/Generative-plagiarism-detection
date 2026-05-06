@@ -2,6 +2,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory
 from rest_framework import status
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from apps.accounts.models import OTPVerification
@@ -249,10 +250,8 @@ def test_gpd_token_obtain_serializer_blocks_inactive_user(inactive_user):
         data={"email": inactive_user.email, "password": "StrongPass123!"}
     )
 
-    assert not serializer.is_valid()
-    assert serializer.errors["non_field_errors"] == [
-        "Your account has been deactivated by an administrator."
-    ]
+    with pytest.raises(AuthenticationFailed, match="No active account found with the given credentials"):
+        serializer.is_valid(raise_exception=True)
 
 
 def test_gpd_token_obtain_serializer_returns_tokens_for_valid_login(user):

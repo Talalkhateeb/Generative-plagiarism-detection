@@ -77,10 +77,8 @@ def test_login_endpoint_blocks_inactive_account(api_client, inactive_user):
         format="json",
     )
 
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert response.data["non_field_errors"] == [
-        "Your account has been deactivated by an administrator."
-    ]
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert response.data["detail"] == "No active account found with the given credentials"
 
 
 @pytest.mark.django_db
