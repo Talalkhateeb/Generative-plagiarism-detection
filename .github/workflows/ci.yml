@@ -8,6 +8,7 @@ env:
   PYTHON_VERSION: "3.11"
   NODE_VERSION: "20"
   CI: "true"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   security-scan:
@@ -146,13 +147,14 @@ jobs:
         run: |
           python manage.py migrate
           python manage.py shell -c "from django.contrib.auth import get_user_model; from apps.plans.models import Plan; User = get_user_model(); plan, _ = Plan.objects.get_or_create(name='Starter', defaults={'price':'0.00','checks_per_month':10,'max_sources':5,'max_documents':3,'allowed_formats':['pdf','docx','txt'],'is_active':True}); User.objects.update_or_create(email='user@example.com', defaults={'name':'Load User','plan':plan,'role':'user','status':'active','is_email_verified':True}); user = User.objects.get(email='user@example.com'); user.set_password('StrongPass123!'); user.save(); User.objects.update_or_create(email='admin@example.com', defaults={'name':'Load Admin','plan':plan,'role':'admin','status':'active','is_email_verified':True}); admin = User.objects.get(email='admin@example.com'); admin.set_password('StrongPass123!'); admin.save()"
-          nohup python manage.py runserver 0.0.0.0:8000 > ../django.log 2>&1 &
+          nohup python manage.py runserver 0.0.0.0:8000 --noreload > ../django.log 2>&1 &
+          echo $! > ../django.pid
           sleep 10
 
       - name: Verify seeded performance users can log in
         working-directory: GPD_back
         run: |
-          @'
+          python - <<'PY'
           import json
           import os
           import sys
@@ -181,14 +183,47 @@ jobs:
           assert_login("LOCUST_USER_EMAIL", "LOCUST_USER_PASSWORD")
           assert_login("LOCUST_ADMIN_EMAIL", "LOCUST_ADMIN_PASSWORD")
           print("Performance login preflight passed.")
-          '@ | python -
+          PY
 
       - name: Run Locust headless test
         working-directory: GPD_back
-        run: locust -f locustfile.py --headless -u 50 -r 5 --run-time 30s --host http://127.0.0.1:8000 --print-stats
+        run: locust -f locustfile.py --headless -u 50 -r 5 --run-time 30s --host http://127.0.0.1:8000 --print-stats --csv=../locust
 
       - name: Output Locust summary
-        run: echo "Locust headless run completed for 50 users over 30 seconds."
+        if: always()
+        run: |
+          python - <<'PY'
+          import csv
+          from pathlib import Path
+
+          stats_path = Path("locust_stats.csv")
+          if not stats_path.exists():
+              print("Locust stats file was not generated.")
+              raise SystemExit(1)
+
+          with stats_path.open(newline="", encoding="utf-8") as handle:
+              rows = list(csv.DictReader(handle))
+
+          total = next((row for row in rows if row.get("Name") == "Aggregated"), None)
+          if not total:
+              print("Aggregated Locust row was not found in locust_stats.csv.")
+              raise SystemExit(1)
+
+          print("Locust performance summary")
+          print(f"Requests: {total['Request Count']}")
+          print(f"Failures: {total['Failure Count']}")
+          print(f"Median response time: {total['Median Response Time']}")
+          print(f"Average response time: {total['Average Response Time']}")
+          print(f"95th percentile: {total['95%']}")
+          print(f"Requests/sec: {total['Requests/s']}")
+          PY
+
+      - name: Stop Django server
+        if: always()
+        run: |
+          if [ -f django.pid ]; then
+            kill "$(cat django.pid)" || true
+          fi
 
   deploy:
     name: Deploy Stage
