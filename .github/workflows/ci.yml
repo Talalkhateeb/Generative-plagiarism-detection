@@ -149,6 +149,40 @@ jobs:
           nohup python manage.py runserver 0.0.0.0:8000 > ../django.log 2>&1 &
           sleep 10
 
+      - name: Verify seeded performance users can log in
+        working-directory: GPD_back
+        run: |
+          @'
+          import json
+          import os
+          import sys
+          import urllib.request
+
+          def assert_login(email_env, password_env):
+              email = os.environ[email_env]
+              password = os.environ[password_env]
+              request = urllib.request.Request(
+                  "http://127.0.0.1:8000/api/auth/login/",
+                  data=json.dumps({"email": email, "password": password}).encode("utf-8"),
+                  headers={"Content-Type": "application/json"},
+                  method="POST",
+              )
+              try:
+                  with urllib.request.urlopen(request) as response:
+                      payload = json.loads(response.read().decode("utf-8"))
+              except Exception as exc:
+                  print(f"Login preflight failed for {email}: {exc}")
+                  sys.exit(1)
+
+              if "access" not in payload:
+                  print(f"Login preflight for {email} returned no access token: {payload}")
+                  sys.exit(1)
+
+          assert_login("LOCUST_USER_EMAIL", "LOCUST_USER_PASSWORD")
+          assert_login("LOCUST_ADMIN_EMAIL", "LOCUST_ADMIN_PASSWORD")
+          print("Performance login preflight passed.")
+          '@ | python -
+
       - name: Run Locust headless test
         working-directory: GPD_back
         run: locust -f locustfile.py --headless -u 50 -r 5 --run-time 30s --host http://127.0.0.1:8000 --print-stats

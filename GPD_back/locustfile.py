@@ -17,6 +17,7 @@ Results summary template:
 import os
 
 from locust import HttpUser, between, task
+from locust.exception import StopUser
 
 
 class BaseAuthenticatedUser(HttpUser):
@@ -26,15 +27,38 @@ class BaseAuthenticatedUser(HttpUser):
     password = ""
     token = None
 
-    def on_start(self):
-        response = self.client.post(
+    def _login(self, request_name="POST /api/auth/login/"):
+        with self.client.post(
             "/api/auth/login/",
             json={"email": self.email, "password": self.password},
-            name="POST /api/auth/login/",
-        )
-        if response.status_code == 200:
-            self.token = response.json().get("access")
-            self.client.headers.update({"Authorization": f"Bearer {self.token}"})
+            name=request_name,
+            catch_response=True,
+        ) as response:
+            if response.status_code != 200:
+                detail = ""
+                try:
+                    payload = response.json()
+                    detail = payload.get("detail") or payload.get("error") or str(payload)
+                except Exception:
+                    detail = response.text
+                response.failure(
+                    f"Login failed for {self.email} with status {response.status_code}: {detail}"
+                )
+                return None
+
+            token = response.json().get("access")
+            if not token:
+                response.failure(f"Login succeeded for {self.email} but no access token was returned.")
+                return None
+
+            response.success()
+            return token
+
+    def on_start(self):
+        self.token = self._login()
+        if not self.token:
+            raise StopUser(f"Unable to authenticate Locust user {self.email}")
+        self.client.headers.update({"Authorization": f"Bearer {self.token}"})
 
 
 class RegularUser(BaseAuthenticatedUser):
@@ -48,11 +72,10 @@ class RegularUser(BaseAuthenticatedUser):
 
     @task(1)
     def login_again(self):
-        self.client.post(
-            "/api/auth/login/",
-            json={"email": self.email, "password": self.password},
-            name="POST /api/auth/login/",
-        )
+        token = self._login()
+        if token:
+            self.token = token
+            self.client.headers.update({"Authorization": f"Bearer {self.token}"})
 
 
 class AdminUser(BaseAuthenticatedUser):
@@ -63,4 +86,3 @@ class AdminUser(BaseAuthenticatedUser):
     @task
     def list_accounts(self):
         self.client.get("/api/admin/accounts/", name="GET /api/admin/accounts/")
-
