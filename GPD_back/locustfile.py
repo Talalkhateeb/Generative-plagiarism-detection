@@ -20,6 +20,16 @@ from locust import HttpUser, between, task
 from locust.exception import StopUser
 
 
+def _env_or_default(name, default):
+    """Use the default when the environment variable is unset or blank."""
+    value = os.getenv(name)
+    if value is None:
+        return default
+
+    cleaned = value.strip()
+    return cleaned or default
+
+
 class BaseAuthenticatedUser(HttpUser):
     wait_time = between(1, 3)
 
@@ -55,6 +65,12 @@ class BaseAuthenticatedUser(HttpUser):
             return token
 
     def on_start(self):
+        if not self.email or not self.password:
+            raise StopUser(
+                f"Locust credentials for {self.__class__.__name__} are missing. "
+                "Check the LOCUST_* environment variables."
+            )
+
         self.token = self._login()
         if not self.token:
             raise StopUser(f"Unable to authenticate Locust user {self.email}")
@@ -63,8 +79,8 @@ class BaseAuthenticatedUser(HttpUser):
 
 class RegularUser(BaseAuthenticatedUser):
     weight = 4
-    email = os.getenv("LOCUST_USER_EMAIL", "user@example.com")
-    password = os.getenv("LOCUST_USER_PASSWORD", "StrongPass123!")
+    email = _env_or_default("LOCUST_USER_EMAIL", "user@example.com").lower()
+    password = _env_or_default("LOCUST_USER_PASSWORD", "StrongPass123!")
 
     @task(2)
     def view_profile(self):
@@ -80,8 +96,8 @@ class RegularUser(BaseAuthenticatedUser):
 
 class AdminUser(BaseAuthenticatedUser):
     weight = 1
-    email = os.getenv("LOCUST_ADMIN_EMAIL", "admin@example.com")
-    password = os.getenv("LOCUST_ADMIN_PASSWORD", "StrongPass123!")
+    email = _env_or_default("LOCUST_ADMIN_EMAIL", "admin@example.com").lower()
+    password = _env_or_default("LOCUST_ADMIN_PASSWORD", "StrongPass123!")
 
     @task
     def list_accounts(self):
