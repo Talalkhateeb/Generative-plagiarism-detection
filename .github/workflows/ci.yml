@@ -1,22 +1,17 @@
-name: SPU Software Testing Pipeline — GPD.AI
+name: CI
 
 on:
   push:
-    branches: [main, software-dev]
   pull_request:
-    branches: [main, software-dev]
 
 env:
   PYTHON_VERSION: "3.11"
-  DJANGO_SETTINGS_MODULE: GPD_Back.settings
+  NODE_VERSION: "20"
   CI: "true"
 
 jobs:
-  # ═════════════════════════════════════════════
-  # 🔐 1. SECURITY SCAN (GitLeaks)
-  # ═════════════════════════════════════════════
-  security:
-    name: 🔐 Security Scan (GitLeaks)
+  security-scan:
+    name: Security Scan
     runs-on: ubuntu-latest
 
     steps:
@@ -27,165 +22,187 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # ═════════════════════════════════════════════
-  # 🧪 2. UNIT + INTEGRATION TESTS
-  # ═════════════════════════════════════════════
-  tests:
-    name: 🧪 Unit + Integration Tests
+  backend-tests:
+    name: Backend Tests
     runs-on: ubuntu-latest
-    needs: security
+    needs: security-scan
 
     services:
       sqlserver:
         image: mcr.microsoft.com/mssql/server:2022-latest
         env:
-          SA_PASSWORD: "YourStrong!Pass123"
           ACCEPT_EULA: "Y"
+          SA_PASSWORD: "YourStrong!Pass123"
         ports:
           - 1433:1433
         options: >-
           --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourStrong!Pass123' -Q 'SELECT 1' -C -b"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 15
-          --health-start-period 30s
+          --health-retries 20
+
+    env:
+      DJANGO_SETTINGS_MODULE: GPD_Back.test_settings
+      DB_ENGINE: mssql
+      DB_NAME: GPD
+      TEST_DB_NAME: GPD_test
+      DB_USER: sa
+      DB_PASSWORD: YourStrong!Pass123
+      DB_HOST: 127.0.0.1
+      DB_PORT: 1433
+      DB_ODBC_DRIVER: ODBC Driver 18 for SQL Server
+      DEFAULT_FROM_EMAIL: tests@example.com
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install system dependencies
+      - name: Install SQL Server tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y curl apt-transport-https unixodbc-dev gnupg2
+          sudo apt-get install -y curl gnupg2 unixodbc-dev
           curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
           curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/msprod.list
           sudo apt-get update
           sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18
 
-      - name: Install Python dependencies
+      - name: Install backend dependencies
         run: |
-          pip install -r GPD_back/requirements.txt
-          pip install pytest pytest-django
+          python -m pip install --upgrade pip
+          pip install -r GPD_back/requirements-dev.txt
 
-      - name: Wait for SQL Server to be ready
+      - name: Wait for SQL Server
         run: |
-          echo "Waiting for SQL Server container to be healthy..."
-          for i in {1..40}; do
-            if /opt/mssql-tools18/bin/sqlcmd -S localhost,1433 -U sa -P 'YourStrong!Pass123' -Q "SELECT 1" -C -b > /dev/null 2>&1; then
-              echo "✅ SQL Server is ready!"
+          for i in {1..30}; do
+            if /opt/mssql-tools18/bin/sqlcmd -S 127.0.0.1,1433 -U sa -P 'YourStrong!Pass123' -Q "SELECT 1" -C -b >/dev/null 2>&1; then
               exit 0
             fi
-            echo "Attempt $i/40 — waiting 5s..."
             sleep 5
           done
-          echo "❌ SQL Server never became ready"
+          echo "SQL Server did not become ready in time."
           exit 1
-      - name: Run migrations
-        working-directory: GPD_back
-        env:
-          DB_ENGINE: mssql
-          DB_NAME: tempdb
-          DB_USER: sa
-          DB_PASSWORD: YourStrong!Pass123
-          DB_HOST: 127.0.0.1
-          DB_PORT: 1433
-          DB_ODBC_DRIVER: "ODBC Driver 18 for SQL Server"
-          DB_TRUST_SERVER_CERTIFICATE: "yes"
-        run: python manage.py migrate
 
-      - name: Run tests
+      - name: Run backend tests with coverage
         working-directory: GPD_back
-        env:
-          DB_ENGINE: mssql
-          DB_NAME: tempdb
-          DB_USER: sa
-          DB_PASSWORD: YourStrong!Pass123
-          DB_HOST: localhost
-          DB_PORT: 1433
-          DB_ODBC_DRIVER: "ODBC Driver 18 for SQL Server"
-          DB_TRUST_SERVER_CERTIFICATE: "yes"
-        run: |
-          pytest tests/test_unit.py tests/test_integration.py -v   # ═════════════════════════════════════════════
-  # 🎭 3. E2E TESTING (PLAYWRIGHT)
-  # ═════════════════════════════════════════════
-  e2e:
-    name: 🎭 E2E Tests (Playwright)
+        run: pytest tests/test_unit_auth.py tests/test_integration_auth_admin.py --cov=apps --cov-report=term-missing
+
+  frontend-tests:
+    name: Frontend Tests
     runs-on: ubuntu-latest
-    needs: tests
+    needs: backend-tests
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: GPD_front/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: GPD_front
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+
+      - name: Run Playwright E2E tests
+        working-directory: GPD_front
+        run: npm run test:e2e
+
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: frontend-tests
+
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          SA_PASSWORD: "YourStrong!Pass123"
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourStrong!Pass123' -Q 'SELECT 1' -C -b"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DJANGO_SETTINGS_MODULE: GPD_Back.test_settings
+      DB_ENGINE: mssql
+      DB_NAME: GPD
+      TEST_DB_NAME: GPD_perf_test
+      DB_USER: sa
+      DB_PASSWORD: YourStrong!Pass123
+      DB_HOST: 127.0.0.1
+      DB_PORT: 1433
+      DB_ODBC_DRIVER: ODBC Driver 18 for SQL Server
+      DEFAULT_FROM_EMAIL: tests@example.com
+      LOCUST_USER_EMAIL: user@example.com
+      LOCUST_USER_PASSWORD: StrongPass123!
+      LOCUST_ADMIN_EMAIL: admin@example.com
+      LOCUST_ADMIN_PASSWORD: StrongPass123!
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install dependencies
+      - name: Install SQL Server tools
         run: |
-          pip install -r GPD_back/requirements.txt
-          pip install pytest-playwright
-          playwright install chromium --with-deps
+          sudo apt-get update
+          sudo apt-get install -y curl gnupg2 unixodbc-dev
+          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+          curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/msprod.list
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18
 
-      # ✅ FIX DB
-      - name: Set CI environment (SQLite safe mode)
+      - name: Install backend dependencies
         run: |
-          echo "DB_ENGINE=django.db.backends.sqlite3" >> GPD_back/.env
-          echo "DB_NAME=:memory:" >> GPD_back/.env
+          python -m pip install --upgrade pip
+          pip install -r GPD_back/requirements-dev.txt
 
-      - name: Run migrations
-        working-directory: GPD_back
-        env:
-          DB_ENGINE: mssql
-          DB_NAME: tempdb
-          DB_USER: sa
-          DB_PASSWORD: YourStrong!Pass123
-          DB_HOST: 127.0.0.1
-          DB_PORT: 1433
-          DB_ODBC_DRIVER: "ODBC Driver 18 for SQL Server"
-          DB_TRUST_SERVER_CERTIFICATE: "yes"
-        run: python manage.py migrate
-      - name: Run Playwright tests
-        working-directory: GPD_back
+      - name: Wait for SQL Server
         run: |
-          pytest tests/test_e2e.py -v -m e2e \
-            --base-url http://localhost:8000
+          for i in {1..30}; do
+            if /opt/mssql-tools18/bin/sqlcmd -S 127.0.0.1,1433 -U sa -P 'YourStrong!Pass123' -Q "SELECT 1" -C -b >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "SQL Server did not become ready in time."
+          exit 1
 
-  # ═════════════════════════════════════════════
-  # ⚡ 4. PERFORMANCE TEST (LOCUST)
-  # ═════════════════════════════════════════════
-  performance:
-    name: ⚡ Performance Testing (Locust)
-    runs-on: ubuntu-latest
-    needs: tests
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Locust
-        run: pip install locust
-
-      - name: Start server (background)
+      - name: Start Django server
         working-directory: GPD_back
         run: |
-          pip install -r requirements.txt
-          python manage.py migrate --run-syncdb
-          python manage.py runserver 0.0.0.0:8000 &
+          python manage.py migrate
+          python manage.py shell -c "from django.contrib.auth import get_user_model; from apps.plans.models import Plan; User = get_user_model(); plan, _ = Plan.objects.get_or_create(name='Starter', defaults={'price':'0.00','checks_per_month':10,'max_sources':5,'max_documents':3,'allowed_formats':['pdf','docx','txt'],'is_active':True}); User.objects.update_or_create(email='user@example.com', defaults={'name':'Load User','plan':plan,'role':'user','status':'active','is_email_verified':True}); user = User.objects.get(email='user@example.com'); user.set_password('StrongPass123!'); user.save(); User.objects.update_or_create(email='admin@example.com', defaults={'name':'Load Admin','plan':plan,'role':'admin','status':'active','is_email_verified':True}); admin = User.objects.get(email='admin@example.com'); admin.set_password('StrongPass123!'); admin.save()"
+          nohup python manage.py runserver 0.0.0.0:8000 > ../django.log 2>&1 &
           sleep 10
 
-      - name: Run performance test
-        run: |
-          locust -f GPD_back/tests/test_performance.py \
-          --headless -u 10 -r 2 --run-time 30s \
-          --host http://localhost:8000 \
-          --html report.html
+      - name: Run Locust headless test
+        working-directory: GPD_back
+        run: locust -f locustfile.py --headless -u 50 -r 5 --run-time 30s --host http://127.0.0.1:8000 --print-stats
 
-      - name: Upload report
-        uses: actions/upload-artifact@v4
-        with:
-          name: locust-report
-          path: report.html
+      - name: Output Locust summary
+        run: echo "Locust headless run completed for 50 users over 30 seconds."
+
+  deploy:
+    name: Deploy Stage
+    runs-on: ubuntu-latest
+    needs: performance-tests
+
+    steps:
+      - name: Placeholder deploy step
+        run: echo "Deploying to staging..."
