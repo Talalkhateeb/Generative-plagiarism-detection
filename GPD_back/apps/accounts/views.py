@@ -91,7 +91,27 @@ class LoginView(TokenObtainPairView):
     """
     serializer_class  = GPDTokenObtainSerializer
     permission_classes = [AllowAny]
+    def post(self, request, *args, **kwargs):
+        # Step 1: Check if user exists and is inactive BEFORE simplejwt runs
+        # This way we control the error message and status code
+        from apps.accounts.models import User
+        from rest_framework.response import Response
+        from rest_framework import status as drf_status
 
+        email = request.data.get('email', '').strip().lower()
+        
+        try:
+            user = User.objects.get(email__iexact=email)
+            if user.status == 'inactive':
+                return Response(
+                    {'detail': 'Your account has been deactivated by an administrator.'},
+                    status=drf_status.HTTP_400_BAD_REQUEST  # your expected status
+                )
+        except User.DoesNotExist:
+            pass  # let simplejwt handle wrong credentials normally
+
+        # Step 2: proceed with normal simplejwt flow
+        return super().post(request, *args, **kwargs)
 
 # ── Registration — 2-step OTP flow ────────────────────────────────────────────
 
