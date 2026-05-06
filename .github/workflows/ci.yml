@@ -27,30 +27,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: security-scan
 
-    services:
-      sqlserver:
-        image: mcr.microsoft.com/mssql/server:2022-latest
-        env:
-          ACCEPT_EULA: "Y"
-          SA_PASSWORD: "YourStrong!Pass123"
-        ports:
-          - 1433:1433
-        options: >-
-          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourStrong!Pass123' -Q 'SELECT 1' -C -b"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 20
-
     env:
       DJANGO_SETTINGS_MODULE: GPD_Back.test_settings
-      DB_ENGINE: mssql
-      DB_NAME: GPD
-      TEST_DB_NAME: GPD_test
-      DB_USER: sa
-      DB_PASSWORD: YourStrong!Pass123
-      DB_HOST: 127.0.0.1
-      DB_PORT: 1433
-      DB_ODBC_DRIVER: ODBC Driver 18 for SQL Server
       DEFAULT_FROM_EMAIL: tests@example.com
 
     steps:
@@ -61,30 +39,10 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install SQL Server tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y curl gnupg2 unixodbc-dev
-          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
-          curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/msprod.list
-          sudo apt-get update
-          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18
-
       - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r GPD_back/requirements-dev.txt
-
-      - name: Wait for SQL Server
-        run: |
-          for i in {1..30}; do
-            if /opt/mssql-tools18/bin/sqlcmd -S 127.0.0.1,1433 -U sa -P 'YourStrong!Pass123' -Q "SELECT 1" -C -b >/dev/null 2>&1; then
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "SQL Server did not become ready in time."
-          exit 1
 
       - name: Run backend tests with coverage
         working-directory: GPD_back
