@@ -106,10 +106,10 @@ test("full registration flow lands on the dashboard", async ({ page }) => {
 
   await page.goto("/login");
   await page.getByRole("button", { name: "Sign Up" }).click();
-  await page.getByLabel("Full Name").fill("Test User");
-  await page.getByLabel("Email").fill("test.user@example.com");
-  await page.getByLabel("Password").fill("StrongPass123!");
-  await page.getByLabel("Confirm Password").fill("StrongPass123!");
+  await page.getByPlaceholder("Your name").fill("Test User");
+  await page.getByPlaceholder("you@example.com").fill("test.user@example.com");
+  await page.getByPlaceholder("Min 6 characters").fill("StrongPass123!");
+  await page.getByPlaceholder("Repeat password").fill("StrongPass123!");
   await page.getByRole("button", { name: /Continue/i }).click();
   await page.getByRole("button", { name: /Starter/i }).click();
   await page.getByRole("button", { name: "Send Verification Code" }).click();
@@ -146,8 +146,8 @@ test("login flow shows the dashboard for valid credentials", async ({ page }) =>
   });
 
   await page.goto("/login");
-  await page.getByLabel("Email").fill("test.user@example.com");
-  await page.getByLabel("Password").fill("StrongPass123!");
+  await page.getByPlaceholder("you@example.com").fill("test.user@example.com");
+  await page.getByPlaceholder("••••••••").fill("StrongPass123!");
   await page.getByRole("button", { name: "Log In" }).click();
 
   await expect(page.getByText("Welcome, Test!")).toBeVisible();
@@ -168,7 +168,7 @@ test("profile page updates the displayed name after save", async ({ page }) => {
   await mockCommonUserApis(page, user);
   await page.goto("/profile");
 
-  await page.getByLabel("Full Name").fill("Updated User");
+  await page.locator('input[value="Test User"]').fill("Updated User");
   await page.getByRole("button", { name: "Save Changes" }).click();
 
   await expect(page.getByText("Changes saved successfully")).toBeVisible();
@@ -216,7 +216,7 @@ test("admin can search a user and set status to inactive", async ({ page }) => {
   });
 
   await page.goto("/admin/accounts");
-  await page.getByLabel("Search").fill("alice@example.com");
+  await page.getByPlaceholder("Name or email").fill("alice@example.com");
   const userRow = page.locator("div.group", { hasText: "alice@example.com" }).first();
   await expect(userRow).toBeVisible();
   await userRow.getByRole("button").click();
