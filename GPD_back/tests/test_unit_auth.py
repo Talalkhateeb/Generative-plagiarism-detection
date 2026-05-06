@@ -1,3 +1,4 @@
+import pytest
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory
 from rest_framework import status
@@ -14,6 +15,7 @@ from apps.accounts.views import DeleteAccountView, GPDTokenObtainSerializer, Upg
 
 
 User = get_user_model()
+pytestmark = pytest.mark.django_db
 
 
 def test_send_otp_serializer_rejects_existing_email(user, plan):
