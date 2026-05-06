@@ -147,7 +147,7 @@ test("login flow shows the dashboard for valid credentials", async ({ page }) =>
 
   await page.goto("/login");
   await page.getByPlaceholder("you@example.com").fill("test.user@example.com");
-  await page.getByPlaceholder("••••••••").fill("StrongPass123!");
+  await page.locator('input[type="password"]').first().fill("StrongPass123!");
   await page.getByRole("button", { name: "Log In" }).click();
 
   await expect(page.getByText("Welcome, Test!")).toBeVisible();
