@@ -120,13 +120,7 @@ class ResendOTPSerializer(serializers.Serializer):
      name             = serializers.CharField(max_length=150)
      email            = serializers.EmailField()
      password         = serializers.CharField(write_only=True)
-     confirm_password = serializers.CharField(write_only=True)
      plan_id          = serializers.IntegerField()
-
-     def validate(self, data):
-        if data['password'] != data.pop('confirm_password', data['password']):
-            raise serializers.ValidationError({'confirm_password': 'Passwords do not match.'})
-        return data
 
      def send_otp(self):
         from django.core.mail import send_mail
@@ -154,15 +148,15 @@ class ResendOTPSerializer(serializers.Serializer):
 # ── Profile serializers ───────────────────────────────────────────────────────
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    plan_name   = serializers.SerializerMethodField()
+    plan        = serializers.SerializerMethodField()
     date_joined = serializers.DateTimeField(source='created_at', read_only=True)
 
     class Meta:
         model  = Account
-        fields = ['id', 'name', 'email', 'role', 'status', 'plan_name', 'date_joined', 'is_email_verified']
+        fields = ['id', 'name', 'email', 'role', 'status', 'plan', 'date_joined', 'is_email_verified']
         read_only_fields = ['role', 'status', 'is_email_verified']
 
-    def get_plan_name(self, obj):
+    def get_plan(self, obj):
         return obj.plan.name if obj.plan else None
 
 

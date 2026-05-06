@@ -57,7 +57,7 @@ export const authAPI = {
 
   // Resend a fresh OTP
   resendOTP: (name: string, email: string, password: string, plan_id: number) =>
-    api.post('/auth/register/resend-otp/', { name, email, password, confirm_password: password, plan_id }),
+    api.post('/auth/register/resend-otp/', { name, email, password, plan_id }),
 
   logout:         (refresh: string) => api.post('/auth/logout/', { refresh }),
   me:             () => api.get('/auth/me/'),
@@ -67,6 +67,9 @@ export const authAPI = {
 
   deleteAccount: (password: string) =>
     api.delete('/auth/me/delete/', { data: { password } }),
+
+  upgradePlan: (plan_id: number) =>
+    api.patch('/auth/me/upgrade-plan/', { plan_id }),
 }
 
 // ── Plans ─────────────────────────────────────────────────────────────────────

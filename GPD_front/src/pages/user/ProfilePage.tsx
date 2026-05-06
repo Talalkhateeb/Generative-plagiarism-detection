@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/app/context/AuthContext'
 import { Card, Button, Input, Alert, Modal } from '@/app/components/ui'
-import { authAPI } from '@/services/api'
+import type { Plan } from '@/types'
+import { authAPI, plansAPI } from '@/services/api'
 
 export default function ProfilePage() {
   const { user, updateProfile, logout } = useAuth()
@@ -20,6 +21,19 @@ export default function ProfilePage() {
   const [deletePass,   setDeletePass]   = useState('')
   const [deleteError,  setDeleteError]  = useState('')
   const [deleting,     setDeleting]     = useState(false)
+
+  // Upgrade plan state
+  const [plans,           setPlans]           = useState<Plan[]>([])
+  const [showUpgrade,     setShowUpgrade]     = useState(false)
+  const [selectedPlan,    setSelectedPlan]    = useState<number | null>(null)
+  const [upgradeError,    setUpgradeError]    = useState('')
+  const [upgrading,       setUpgrading]       = useState(false)
+  const [upgradeSuccess,  setUpgradeSuccess]  = useState(false)
+
+  // Load available plans
+  useEffect(() => {
+    plansAPI.list().then(res => setPlans(res.data.results ?? res.data)).catch(() => {})
+  }, [])
 
   const saveInfo = () => {
     const e: Record<string,string> = {}
@@ -64,6 +78,27 @@ export default function ProfilePage() {
     }
   }
 
+  const handleUpgradePlan = async () => {
+    if (!selectedPlan) { setUpgradeError('Please select a plan'); return }
+    if (selectedPlan === plans.find(p => p.name === user?.plan)?.id) {
+      setUpgradeError('You are already on this plan'); return
+    }
+    
+    setUpgrading(true); setUpgradeError('')
+    try {
+      await authAPI.upgradePlan(selectedPlan)
+      const { data } = await authAPI.me()
+      updateProfile(data)
+      setUpgradeSuccess(true)
+      setShowUpgrade(false)
+      setSelectedPlan(null)
+    } catch (err: any) {
+      setUpgradeError(err.response?.data?.error || 'Failed to upgrade plan')
+    } finally {
+      setUpgrading(false)
+    }
+  }
+
   return (
     <div className="space-y-6 animate-fade-in max-w-2xl">
       <div>
@@ -76,7 +111,7 @@ export default function ProfilePage() {
         <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center text-2xl font-bold text-primary flex-shrink-0">
           {user?.name?.charAt(0)}
         </div>
-        <div>
+        <div className="flex-1">
           <p className="font-bold">{user?.name}</p>
           <p className="text-sm text-muted-foreground">{user?.email}</p>
           <div className="flex gap-2 mt-1.5">
@@ -84,7 +119,14 @@ export default function ProfilePage() {
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${user?.role === 'admin' ? 'bg-violet-500/15 text-violet-400' : 'bg-secondary text-muted-foreground'}`}>{user?.role}</span>
           </div>
         </div>
+        {plans.length > 0 && <Button onClick={() => {
+          const currentPlan = plans.find(p => p.name === user?.plan)
+          setShowUpgrade(true)
+          setSelectedPlan(currentPlan?.id ?? null)
+          setUpgradeError('')
+        }}>Upgrade Plan</Button>}
       </Card>
+      {upgradeSuccess && <Alert variant="success">Plan upgraded successfully!</Alert>}
 
       {/* Edit Info */}
       <Card className="p-5 space-y-4">
@@ -163,6 +205,50 @@ export default function ProfilePage() {
             <Button variant="outline" onClick={() => setShowDelete(false)}>Cancel</Button>
             <Button variant="destructive" onClick={handleDeleteAccount} disabled={deleting}>
               {deleting ? 'Deleting…' : 'Yes, Delete My Account'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Upgrade Plan Modal */}
+      <Modal isOpen={showUpgrade} onClose={() => setShowUpgrade(false)} title="Upgrade Plan">
+        <div className="space-y-4">
+          {upgradeError && <Alert variant="error">{upgradeError}</Alert>}
+          
+          <div className="text-sm text-muted-foreground mb-4">
+            Current plan: <span className="font-semibold text-foreground">{user?.plan}</span>
+          </div>
+
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {plans.map(plan => (
+              <div
+                key={plan.id}
+                onClick={() => setSelectedPlan(plan.id)}
+                className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                  selectedPlan === plan.id
+                    ? 'border-primary bg-primary/10'
+                    : plan.name === user?.plan
+                    ? 'border-muted opacity-50 cursor-not-allowed'
+                    : 'border-border hover:border-primary/50'
+                }`}
+              >
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="font-semibold">{plan.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {plan.checks_per_month === -1 ? 'Unlimited checks' : `${plan.checks_per_month} checks/month`}
+                    </p>
+                  </div>
+                  <p className="text-lg font-bold text-primary">${plan.price}<span className="text-xs font-normal">/mo</span></p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-2 justify-end pt-2">
+            <Button variant="outline" onClick={() => setShowUpgrade(false)}>Cancel</Button>
+            <Button onClick={handleUpgradePlan} disabled={upgrading || !selectedPlan}>
+              {upgrading ? 'Upgrading…' : 'Confirm Upgrade'}
             </Button>
           </div>
         </div>

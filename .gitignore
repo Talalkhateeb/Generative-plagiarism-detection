@@ -27,6 +27,7 @@ env/
 *.swo
 cloudflared/
 
+
 # Databases and generated app data
 db.sqlite3
 staticfiles/
@@ -41,6 +42,7 @@ GPD_front/.vite/
 .cache/
 *.local
 *.tsbuildinfo
+.vite/
 
 # OS files
 .DS_Store
