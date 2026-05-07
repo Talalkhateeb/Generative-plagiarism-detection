@@ -236,7 +236,7 @@ export default function WorkspaceDetailPage() {
         const res = await workspacesAPI.results(wsId)
         if (res.status === 200 && res.data?.document_results) {
           setResults(res.data.document_results)
-          setSubmissions(p => [res.data, ...p])
+          setSubmissions(p => p.map(s => ({ ...s, status: 'completed' })))
           setWsStatus('analyzed')
           workspacesAPI.get(wsId).then(r => setWsStatus(r.data.status))  // ← ADD THIS
 
@@ -466,7 +466,8 @@ export default function WorkspaceDetailPage() {
       )}
 
       {/* Analyzing (Polling) */}
-      {step < 0 && warning === '' && !results && submissions.some(s => s.status === 'processing') && (        <Card className="p-10">
+      {step < 0 && warning === '' && !results && submissions.every(s => s.status !== 'completed') && (     
+           <Card className="p-10">
           <div className="flex flex-col items-center gap-5 text-center">
             <div className="w-14 h-14 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
             <div>
