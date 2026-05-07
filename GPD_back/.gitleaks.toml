@@ -1,28 +1,21 @@
 # .gitleaks.toml — GitLeaks configuration for GPD.AI
-# Docs: https://github.com/gitleaks/gitleaks
-
 title = "GPD.AI GitLeaks Config"
 
 [extend]
-# Use the default GitLeaks ruleset as a base
 useDefault = true
 
-# ── Allow-list: known false positives ────────────────────────────────────────
-[[allowlists]]
-description = "CI test keys that are intentionally fake"
-regexTarget = "match"
+# Single allowlist block — combine everything here
+[allowlist]
+description = "GPD.AI known false positives"
 regexes = [
     "ci-test-secret-key",
     "ci-e2e-secret-key",
     "ci-perf-secret-key",
     "django-insecure-GPD-dev-key-change-in-production",
 ]
-
-[[allowlists]]
-description = "Test fixture passwords — not real credentials"
 paths = [
-    ".github/workflows/ci.yml",
-    "tests/test_performance.py",
-    "tests/test_e2e.py",
-    "conftest.py",
+    '''.github/workflows/ci\.yml''',
+    '''tests/test_performance\.py''',
+    '''tests/test_e2e\.py''',
+    '''conftest\.py''',
 ]
