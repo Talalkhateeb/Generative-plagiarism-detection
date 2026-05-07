@@ -238,6 +238,8 @@ export default function WorkspaceDetailPage() {
           setResults(res.data.document_results)
           setSubmissions(p => [res.data, ...p])
           setWsStatus('analyzed')
+          workspacesAPI.get(wsId).then(r => setWsStatus(r.data.status))  // ← ADD THIS
+
           setWorkspaces(prev => prev.map(w =>
             w.id === wsId
               ? { ...w, status: 'analyzed', sources_count: sources.length, documents_count: documents.length }
@@ -464,8 +466,7 @@ export default function WorkspaceDetailPage() {
       )}
 
       {/* Analyzing (Polling) */}
-      {step < 0 && warning === '' && !results && submissions.length > 0 && (
-        <Card className="p-10">
+      {step < 0 && warning === '' && !results && submissions.some(s => s.status === 'processing') && (        <Card className="p-10">
           <div className="flex flex-col items-center gap-5 text-center">
             <div className="w-14 h-14 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
             <div>
