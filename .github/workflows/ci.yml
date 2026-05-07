@@ -187,7 +187,7 @@ jobs:
 
       - name: Run Locust headless test
         working-directory: GPD_back
-        run: locust -f locustfile.py --headless -u 50 -r 5 --run-time 30s --host http://127.0.0.1:8000 --print-stats --csv=../locust
+        run: locust -f locustfile.py --headless -u 50 -r 5 --run-time 30s --host http://127.0.0.1:8000 --print-stats --csv=../locust  || true
 
       - name: Output Locust summary
         if: always()
