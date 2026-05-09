@@ -21,9 +21,16 @@ interface AuthCtx {
 
 const AuthContext = createContext<AuthCtx>({} as AuthCtx)
 
-const saveUser = (user: User) => localStorage.setItem('GPD_user', JSON.stringify(user))
+const USER_KEY = 'GPDetect_user'
+const LEGACY_USER_KEY = 'GPD_user'
+
+const saveUser = (user: User) => {
+  localStorage.setItem(USER_KEY, JSON.stringify(user))
+  localStorage.removeItem(LEGACY_USER_KEY)
+}
 const clearAuth = () => {
-  localStorage.removeItem('GPD_user')
+  localStorage.removeItem(USER_KEY)
+  localStorage.removeItem(LEGACY_USER_KEY)
   localStorage.removeItem('access_token')
   localStorage.removeItem('refresh_token')
 }
@@ -43,11 +50,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const stored = localStorage.getItem('GPD_user')
+    const stored = localStorage.getItem(USER_KEY) ?? localStorage.getItem(LEGACY_USER_KEY)
     const token = localStorage.getItem('access_token')
     if (stored && token) {
       try {
-        setUser(JSON.parse(stored))
+        const nextUser = JSON.parse(stored)
+        setUser(nextUser)
+        localStorage.setItem(USER_KEY, stored)
+        localStorage.removeItem(LEGACY_USER_KEY)
       } catch (_) {}
     }
     setLoading(false)

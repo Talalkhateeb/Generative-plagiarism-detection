@@ -93,7 +93,8 @@ export function ThemeToggle({ theme, toggle }: { theme: string; toggle: () => vo
 // ── ScoreRing ────────────────────────────────────────────────────────────────
 export function ScoreRing({ score }: { score: number }) {
   const r = 52, c = 2 * Math.PI * r
-  const filled = ((100 - score) / 100) * c
+  const safeScore = Math.min(Math.max(score, 0), 100)
+  const filled = (safeScore / 100) * c
   const color = score < 15 ? '#22c55e' : score < 30 ? '#eab308' : '#ef4444'
   return (
     <div className="relative flex items-center justify-center">

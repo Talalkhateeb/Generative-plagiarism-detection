@@ -1,5 +1,5 @@
 /**
- * GPD.AI — API Service
+ * GPDetect API Service
  */
 import axios, { type AxiosError } from 'axios'
 

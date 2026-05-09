@@ -72,7 +72,7 @@ function DocumentResultCard({ result }: { result: DocumentResult }) {
                     </div>
                     <div className="h-1.5 rounded-full bg-secondary">
                       <div className="h-full rounded-full transition-all duration-700"
-                        style={{ width: `${Math.min(ms.match * 3, 100)}%`, backgroundColor: ms.color }} />
+                        style={{ width: `${Math.min(Math.max(ms.match, 0), 100)}%`, backgroundColor: ms.color }} />
                     </div>
                   </div>
                 ))
@@ -127,6 +127,7 @@ export default function WorkspaceDetailPage() {
   const [results,     setResults]     = useState<DocumentResult[] | null>(null)
   const [warning,     setWarning]     = useState('')
   const [downloading, setDownloading] = useState(false)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [wsName,      setWsName]      = useState(location.state?.workspace?.name ?? '')
   const [wsStatus,    setWsStatus]    = useState(location.state?.workspace?.status ?? 'draft')
   const [loading,     setLoading]     = useState(true)
@@ -234,8 +235,21 @@ export default function WorkspaceDetailPage() {
     const poll = async () => {
       try {
         const res = await workspacesAPI.results(wsId)
+        if (res.status === 202) {
+          attempts++
+          setWsStatus(res.data?.status ?? 'pending')
+          if (attempts < maxAttempts) {
+            setTimeout(poll, pollInterval)
+            return
+          }
+          setWarning('Analysis is taking longer than expected. Check back later.')
+          setIsAnalyzing(false)
+          return
+        }
+
         if (res.status === 200 && res.data?.document_results) {
           setResults(res.data.document_results)
+          setIsAnalyzing(false)
           setSubmissions(p => p.map(s => ({ ...s, status: 'completed' })))
           setWsStatus('analyzed')
           workspacesAPI.get(wsId).then(r => setWsStatus(r.data.status))  // ← ADD THIS
@@ -255,10 +269,12 @@ export default function WorkspaceDetailPage() {
             return
           } else {
             setWarning('Analysis is taking longer than expected. Check back later.')
+            setIsAnalyzing(false)
             return
           }
         }
         setWarning('Failed to retrieve results. Please try again.')
+        setIsAnalyzing(false)
       }
     }
 
@@ -267,7 +283,9 @@ export default function WorkspaceDetailPage() {
   }
 
   const handleSubmit = async () => {
-    setWarning(''); setStep(0)
+    setWarning('')
+    setIsAnalyzing(true)
+    setStep(0)
     try {
       setStep(0); await new Promise(r => setTimeout(r, 600))
       setStep(1); await new Promise(r => setTimeout(r, 600))
@@ -281,6 +299,7 @@ export default function WorkspaceDetailPage() {
       
       if (submission.document_results?.length > 0) {
         setStep(-1)
+        setIsAnalyzing(false)
         setResults(submission.document_results)
         setSubmissions(p => [submission, ...p])
         setWsStatus('analyzed')
@@ -295,77 +314,103 @@ export default function WorkspaceDetailPage() {
       }
     } catch (err: any) {
       setStep(-1)
+      setIsAnalyzing(false)
       setWarning(err.response?.data?.error || err.response?.data?.detail || 'Submission failed. Please try again.')
     }
   }
 
-  // ── PDF Download using jsPDF ──────────────────────────────────────────────
   const handleDownload = async () => {
     if (!results) return
     setDownloading(true)
     try {
       const { jsPDF } = await import('jspdf')
-      const doc   = new jsPDF()
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
       const pageW = doc.internal.pageSize.getWidth()
-      let y = 20
+      const pageH = doc.internal.pageSize.getHeight()
+      const margin = 15
+      const contentW = pageW - margin * 2
+      let y = 22
 
-      const addLine = (text: string, size = 11, bold = false, color = '#000000') => {
-        if (y > 270) { doc.addPage(); y = 20 }
+      const safeName = (wsName || 'workspace').trim().replace(/[^\w.-]+/g, '-').replace(/-+/g, '-')
+      const addPageIfNeeded = (height = 8) => {
+        if (y + height <= pageH - 22) return
+        doc.addPage()
+        y = 20
+      }
+      const addLine = (text: string, size = 11, bold = false, color = '#111827') => {
         doc.setFontSize(size)
         doc.setFont('helvetica', bold ? 'bold' : 'normal')
         doc.setTextColor(color)
-        const lines = doc.splitTextToSize(text, pageW - 30)
-        doc.text(lines, 15, y)
-        y += (size * 0.6) * lines.length
+        const lines = doc.splitTextToSize(text || '-', contentW)
+        const height = Math.max(6, lines.length * size * 0.45 + 2)
+        addPageIfNeeded(height)
+        doc.text(lines, margin, y)
+        y += height
       }
-      const gap = (n = 5) => { y += n }
+      const gap = (n = 5) => { addPageIfNeeded(n); y += n }
 
-      // Header
       doc.setFillColor(15, 23, 42)
-      doc.rect(0, 0, pageW, 30, 'F')
+      doc.rect(0, 0, pageW, 32, 'F')
       doc.setFontSize(18); doc.setFont('helvetica', 'bold'); doc.setTextColor('#ffffff')
-      doc.text('GPD.AI — Plagiarism Report', 15, 20)
-      y = 38
+      doc.text('GPDetect Plagiarism Report', margin, 20)
+      y = 42
 
       addLine(`Workspace: ${wsName}`, 11, true)
       addLine(`Generated: ${new Date().toLocaleString()}`, 10, false, '#666666')
-      addLine(`Documents analysed: ${results.length}`, 10, false, '#666666')
+      addLine(`Documents analyzed: ${results.length}`, 10, false, '#666666')
       gap(8)
 
-      doc.setDrawColor(200, 200, 200); doc.line(15, y, pageW - 15, y); gap(8)
+      doc.setDrawColor(200, 200, 200); doc.line(margin, y, pageW - margin, y); gap(8)
 
-      // One section per document
       results.forEach((r, idx) => {
         addLine(`Document ${idx + 1}: ${r.document_name}`, 13, true)
         gap(2)
         const riskLabel = r.plagiarism_score >= 30 ? 'HIGH RISK' : r.plagiarism_score >= 15 ? 'MEDIUM RISK' : 'LOW RISK'
         const riskColor = r.plagiarism_score >= 30 ? '#ef4444' : r.plagiarism_score >= 15 ? '#f97316' : '#22c55e'
-        addLine(`Score: ${r.plagiarism_score}%  |  Original: ${r.original_percentage}%  |  ${riskLabel}`, 11, false, riskColor)
+        addLine(`Score: ${r.plagiarism_score}% | Original: ${r.original_percentage}% | ${riskLabel}`, 11, false, riskColor)
         gap(4)
         addLine('Matched Sources (sorted by similarity):', 10, true)
         gap(2)
         if (r.matched_sources.length === 0) {
-          addLine('  No significant matches found.', 10, false, '#666666')
+          addLine('No significant matches found.', 10, false, '#666666')
         } else {
           r.matched_sources.forEach((ms, i) => {
-            const bar = '█'.repeat(Math.max(1, Math.round(ms.match / 5)))
-            addLine(`  ${i + 1}. ${ms.source}  →  ${ms.match}%  ${bar}`, 10)
+            addLine(`${i + 1}. ${ms.source} - ${ms.match}%`, 10)
+          })
+        }
+
+        const highlighted = r.highlighted_segments?.filter((seg: any) => seg.highlight) ?? []
+        if (highlighted.length > 0) {
+          gap(4)
+          addLine('Highlighted Matches:', 10, true)
+          highlighted.forEach((seg: any, i: number) => {
+            const source = seg.source ? `Source: ${seg.source}` : 'Source: Unknown'
+            addLine(`${i + 1}. ${source}`, 9, true, '#92400e')
+            addLine(seg.text, 9, false, '#374151')
+            gap(2)
           })
         }
         gap(6)
         if (idx < results.length - 1) {
-          doc.setDrawColor(220, 220, 220); doc.line(15, y, pageW - 15, y); gap(8)
+          addPageIfNeeded(12)
+          doc.setDrawColor(220, 220, 220); doc.line(margin, y, pageW - margin, y); gap(8)
         }
       })
 
-      gap(10)
-      doc.setFontSize(9); doc.setTextColor('#aaaaaa')
-      doc.text('Generated by GPD.AI — Academic Integrity Platform', 15, y)
-      doc.save(`GPD-report-${wsName}.pdf`)
+      const pages = doc.getNumberOfPages()
+      for (let i = 1; i <= pages; i++) {
+        doc.setPage(i)
+        doc.setFontSize(8)
+        doc.setTextColor('#9ca3af')
+        doc.text('Generated by GPDetect', margin, pageH - 10)
+        doc.text(`Page ${i} of ${pages}`, pageW - margin, pageH - 10, { align: 'right' })
+      }
+      doc.save(`GPDetect-report-${safeName}.pdf`)
     } catch (e) {
       setWarning('PDF generation failed. Run: npm install jspdf')
+    } finally {
+      setDownloading(false)
     }
-    setDownloading(false)
   }
 
   const worstScore = results ? Math.max(...results.map(r => r.plagiarism_score)) : null
@@ -466,7 +511,7 @@ export default function WorkspaceDetailPage() {
       )}
 
       {/* Analyzing (Polling) */}
-      {step < 0 && warning === '' && !results && submissions.every(s => s.status !== 'completed') && (     
+      {isAnalyzing && step < 0 && warning === '' && !results && (     
            <Card className="p-10">
           <div className="flex flex-col items-center gap-5 text-center">
             <div className="w-14 h-14 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />

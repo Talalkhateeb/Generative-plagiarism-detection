@@ -11,7 +11,7 @@ export async function downloadPDFReport(result: AnalysisResult, workspace: Works
   doc.rect(0, 0, W, 35, 'F')
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(22); doc.setFont('helvetica', 'bold')
-  doc.text('GPD.AI', margin, 18)
+  doc.text('GPDetect', margin, 18)
   doc.setFontSize(10); doc.setFont('helvetica', 'normal')
   doc.text('Academic Integrity — Plagiarism Report', margin, 27)
 
@@ -105,9 +105,9 @@ export async function downloadPDFReport(result: AnalysisResult, workspace: Works
     doc.rect(0, 285, W, 15, 'F')
     doc.setTextColor(148, 163, 184)
     doc.setFontSize(8); doc.setFont('helvetica', 'normal')
-    doc.text('GPD.AI — Academic Integrity Platform', margin, 292)
+    doc.text('GPDetect Academic Integrity Platform', margin, 292)
     doc.text(`Page ${i} of ${pages}`, W - margin, 292, { align: 'right' })
   }
 
-  doc.save(`GPD-report-${workspace.name.replace(/\s+/g, '-')}.pdf`)
+  doc.save(`GPDetect-report-${workspace.name.replace(/\s+/g, '-')}.pdf`)
 }
