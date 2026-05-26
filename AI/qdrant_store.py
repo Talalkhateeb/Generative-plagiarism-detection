@@ -13,7 +13,7 @@ import uuid  # to generate unique IDs for each chunk
 # new
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", None)
-VECTOR_DIM = 768
+VECTOR_DIM = 1024
 
 _client = None
 
