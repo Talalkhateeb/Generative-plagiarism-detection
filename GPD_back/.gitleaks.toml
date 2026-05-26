@@ -1,0 +1,21 @@
+# .gitleaks.toml — GitLeaks configuration for GPD.AI
+title = "GPD.AI GitLeaks Config"
+
+[extend]
+useDefault = true
+
+# Single allowlist block — combine everything here
+[allowlist]
+description = "GPD.AI known false positives"
+regexes = [
+    "ci-test-secret-key",
+    "ci-e2e-secret-key",
+    "ci-perf-secret-key",
+    "django-insecure-GPD-dev-key-change-in-production",
+]
+paths = [
+    '''.github/workflows/ci\.yml''',
+    '''tests/test_performance\.py''',
+    '''tests/test_e2e\.py''',
+    '''conftest\.py''',
+]

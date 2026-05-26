@@ -1,0 +1,5 @@
+# Convenience aggregate for installing all Python services from the repo root.
+# Individual service deployments should prefer their own requirements file.
+-r GPD_back/requirements.txt
+-r AI/requirements.txt
+-r storage_service/requirements.txt

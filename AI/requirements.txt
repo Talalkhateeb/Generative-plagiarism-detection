@@ -1,0 +1,11 @@
+qdrant-client
+sentence-transformers
+transformers
+torch
+rank-bm25
+fastapi
+uvicorn
+pdfplumber
+python-docx
+python-multipart
+requests

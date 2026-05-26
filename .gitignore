@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+**/__pycache__/
+pycache/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.pytest_cache/
+dist/
+build/
+
+# Environment and secrets
+.env
+.env.*
+*.env
+.venv/
+venv/
+env/
+
+# Local tooling
+.claude/
+.vscode/
+.idea/
+*.swp
+*.swo
+cloudflared/
+
+
+# Databases and generated app data
+db.sqlite3
+staticfiles/
+media/
+storage/
+storage_service/storage/
+qdrant_storage/
+
+# Node / frontend
+node_modules/
+GPD_front/.vite/
+.cache/
+*.local
+*.tsbuildinfo
+.vite/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Model cache
+.cache/
+*.pt
+*.bin
+
+# Jupyter
+.ipynb_checkpoints/
