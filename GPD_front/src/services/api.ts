@@ -8,14 +8,14 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-// ── Attach JWT token ──────────────────────────────────────────────────────────
+// Attach JWT token 
 api.interceptors.request.use(cfg => {
   const token = localStorage.getItem('access_token')
   if (token) cfg.headers.Authorization = `Bearer ${token}` 
   return cfg
 })
 
-// ── Auto-refresh on 401 ───────────────────────────────────────────────────────
+// Auto-refresh on 401 
 api.interceptors.response.use(
   r => r,
   async (err: AxiosError) => {
@@ -42,7 +42,7 @@ api.interceptors.response.use(
   }
 )
 
-// ── Auth ──────────────────────────────────────────────────────────────────────
+// Auth 
 export const authAPI = {
   login: (email: string, password: string) =>
     api.post('/auth/login/', { email, password }),
@@ -72,7 +72,7 @@ export const authAPI = {
     api.patch('/auth/me/upgrade-plan/', { plan_id }),
 }
 
-// ── Plans ─────────────────────────────────────────────────────────────────────
+// Plans 
 export const plansAPI = {
   list:   () => api.get('/plans/'),
   create: (data: object) => api.post('/plans/', data),
@@ -80,7 +80,7 @@ export const plansAPI = {
   delete: (id: number) => api.delete(`/plans/${id}/`),
 }
 
-// ── Workspaces ────────────────────────────────────────────────────────────────
+// Workspaces 
 export const workspacesAPI = {
   list:   () => api.get('/workspaces/'),
   create: (name: string) => api.post('/workspaces/', { name }),
@@ -110,12 +110,13 @@ export const workspacesAPI = {
   report:  (id: number) => api.get(`/workspaces/${id}/report/`),
 }
 
-// ── Submissions ───────────────────────────────────────────────────────────────
+// Submissions 
 export const submissionsAPI = {
   history: () => api.get('/submissions/history/'),
+  get:     (id: number) => api.get(`/submissions/${id}/`),
 }
 
-// ── Admin ─────────────────────────────────────────────────────────────────────
+// Admin
 export const adminAPI = {
   listAccounts:  (params?: { search?: string }) => api.get('/admin/accounts/', { params }),
   getAccount:    (id: number) => api.get(`/admin/accounts/${id}/`),

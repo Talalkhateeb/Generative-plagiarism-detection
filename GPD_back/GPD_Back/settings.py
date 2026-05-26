@@ -1,5 +1,5 @@
 """
-GPD.AI — Django Settings
+GPDetect — Django Settings
 Backend for Plagiarism Detection System
 """
 
@@ -13,14 +13,14 @@ import environ
 env = environ.Env()
 environ.Env.read_env(BASE_DIR / '.env')
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-GPD-dev-key-change-in-production')
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-GPD-dev-key-change-in-production') # fallback for development, must be set in production in env 
 
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 DJANGO_BASE_URL = os.getenv("DJANGO_BASE_URL", "http://localhost:8000")
 
-# ── Applications ─────────────────────────────────────────────────────────────
+# Applications 
 DJANGO_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -28,7 +28,7 @@ DJANGO_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-]
+] 
 THIRD_PARTY_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
@@ -45,7 +45,7 @@ LOCAL_APPS = [
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
-MIDDLEWARE = [
+MIDDLEWARE = [ 
     'corsheaders.middleware.CorsMiddleware',          # Must be first
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -54,7 +54,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-]
+] 
 
 ROOT_URLCONF = 'GPD_Back.urls'
 
@@ -68,21 +68,13 @@ TEMPLATES = [{
         'django.contrib.auth.context_processors.auth',
         'django.contrib.messages.context_processors.messages',
     ]},
-}]
+}] 
 
 WSGI_APPLICATION = 'GPD_Back.wsgi.application'
 
-# ── Database ─────────────────────────────────────────────────────────────────
+# Database  
 _is_ci = os.environ.get('CI', 'false').lower() == 'true'
 DATABASES = {
-    # ── SQLite (development) ──────────────────────────────────
-    # 'default': {
-    #     'ENGINE': 'django.db.backends.sqlite3',
-    #     'NAME': BASE_DIR / 'db.sqlite3',
-    # }
-
-    # ── SQL Server (production) ───────────────────────────────
-    # pip install mssql-django
     'default': {
         'ENGINE':   os.environ.get('DB_ENGINE', 'mssql'),
         'NAME':     os.environ.get('DB_NAME', 'GPD'),
@@ -95,37 +87,26 @@ DATABASES = {
             'extra_params': 'TrustServerCertificate=yes;Encrypt=yes;' if _is_ci else '',
         },
     }
-
-    # ── PostgreSQL (alternative) ──────────────────────────────
-    # pip install psycopg2-binary
-    # 'default': {
-    #     'ENGINE': 'django.db.backends.postgresql',
-    #     'NAME': os.environ.get('DB_NAME', 'GPD_db'),
-    #     'USER': os.environ.get('DB_USER', 'GPD_user'),
-    #     'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-    #     'HOST': os.environ.get('DB_HOST', 'localhost'),
-    #     'PORT': os.environ.get('DB_PORT', '5432'),
-    # }
 }
 
-# ── Custom User Model ─────────────────────────────────────────────────────────
-AUTH_USER_MODEL = 'accounts.User'
+# Custom User Model 
+AUTH_USER_MODEL = 'accounts.User' 
 
-# ── Password Validation ───────────────────────────────────────────────────────
+# Password Validation 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
     {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
-]
+] 
 
-# ── Internationalization ──────────────────────────────────────────────────────
+# Internationalization 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# ── Static & Media ───────────────────────────────────────────────────────────
+# Static & Media 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
@@ -134,7 +115,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# ── Django REST Framework ─────────────────────────────────────────────────────
+# Django REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -149,9 +130,9 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
-}
+} 
 
-# ── JWT Configuration ─────────────────────────────────────────────────────────
+# JWT Configuration 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
@@ -164,7 +145,7 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM': 'user_id',
 }
 
-# ── CORS ─────────────────────────────────────────────────────────────────────
+# CORS 
 # Development: allow all origins
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
@@ -185,11 +166,11 @@ CORS_ALLOW_HEADERS = [
     'dnt', 'origin', 'user-agent', 'x-csrftoken', 'x-requested-with',
 ]
 
-# ── File Upload Settings ──────────────────────────────────────────────────────
+# File Upload Settings 
 ALLOWED_DOCUMENT_EXTENSIONS = ['.pdf', '.docx', '.doc', '.txt']
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
 
-# ── Plan Limits ───────────────────────────────────────────────────────────────
+# Plan Limits
 PLAN_DEFAULTS = {
     'Starter':    {'checks': 10,  'max_sources': 5,  'max_docs': 3},
     'Pro':        {'checks': 50,  'max_sources': 20, 'max_docs': 10},
@@ -200,10 +181,10 @@ CELERY_BROKER_URL    = os.environ.get('CELERY_BROKER_URL', 'amqp://localhost')
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'rpc://')
 CELERY_TASK_SERIALIZER = 'json'
 
-# ── Storage Microservice ──────────────────────────────────────────────────────
+# Storage Microservice 
 STORAGE_SERVICE_URL = os.environ.get('STORAGE_SERVICE_URL', '')
 
-# ── AI Model ──────────────────────────────────────────────────────────────────
+# AI Model
 AI_MODEL_URL = os.environ.get('AI_MODEL_URL', '')
 
 # ── Email Configuration ───────────────────────────────────────────────────────
@@ -235,8 +216,3 @@ DEFAULT_FROM_EMAIL = f'GPD.AI <{EMAIL_HOST_USER}>'
 SERVER_EMAIL = EMAIL_HOST_USER
 
 '''
-
-# ── AUTH_USER_MODEL: point to Account (base model) ───────────────────────────
-# Keep this as 'accounts.User' because that's what the migration named it.
-# The proxy models (User, Admin) share this table.
-DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'

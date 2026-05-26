@@ -24,8 +24,7 @@ class WorkspaceMixin:
         return get_object_or_404(Workspace, pk=pk, user=self.request.user)
 
 
-# ── Workspace CRUD ────────────────────────────────────────────────────────────
-
+#  Workspace CRUD 
 class WorkspaceListCreateView(WorkspaceMixin, generics.ListCreateAPIView):
     """
     GET  /api/workspaces/  → list user's workspaces
@@ -67,8 +66,7 @@ class WorkspaceDetailView(WorkspaceMixin, APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-# ── Sources ───────────────────────────────────────────────────────────────────
-
+# Sources 
 class SourceListCreateView(WorkspaceMixin, APIView):
     """
     GET  /api/workspaces/{id}/sources/  → list sources
@@ -114,8 +112,7 @@ class SourceDeleteView(WorkspaceMixin, APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-# ── Documents ─────────────────────────────────────────────────────────────────
-
+# Documents 
 class DocumentListCreateView(WorkspaceMixin, APIView):
     """
     GET  /api/workspaces/{id}/documents/  → list documents

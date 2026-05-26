@@ -39,7 +39,7 @@ class AIResultCallbackView(APIView):
     authentication_classes = []  # internal service, no user auth
     permission_classes = []
 
-    def post(self, request):
+    def post(self, request): 
         data = request.data
 
         submission_id  = data.get('submission_id')

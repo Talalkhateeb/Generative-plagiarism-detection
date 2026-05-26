@@ -30,8 +30,14 @@ class SubmitView(APIView):
     def post(self, request, pk):
         ws = get_object_or_404(Workspace, pk=pk, user=request.user)
 
-        source_ids   = request.data.get('source_ids', [])
-        document_ids = request.data.get('document_ids', [])
+        try:
+            source_ids = {int(item) for item in request.data.get('source_ids', [])}
+            document_ids = {int(item) for item in request.data.get('document_ids', [])}
+        except (TypeError, ValueError):
+            return Response(
+                {'error': 'Source and document IDs must be valid integers.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         if not source_ids or len(source_ids) < 2:
             return Response(
@@ -44,16 +50,38 @@ class SubmitView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Create submission
-        submission = Submission.objects.create(workspace=ws, user=request.user)
-        submission.sources.set(ws.sources.filter(id__in=source_ids))
-        submission.documents.set(ws.documents.filter(id__in=document_ids))
+        sources = list(ws.sources.filter(id__in=source_ids))
+        documents = list(ws.documents.filter(id__in=document_ids))
+
+        if len(sources) != len(source_ids):
+            return Response(
+                {'error': 'One or more selected sources were not found in this workspace.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if len(documents) != len(document_ids):
+            return Response(
+                {'error': 'One or more selected documents were not found in this workspace.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         # UC-4 Step 2: Check plan limitation
-        allowed, plan_msg = submission.check_plan()
-        if not allowed:
-            submission.delete()
-            return Response({'error': plan_msg}, status=status.HTTP_403_FORBIDDEN)
+        plan = request.user.plan
+        if not plan:
+            return Response(
+                {'error': 'No subscription plan. Please select a plan.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        remaining = plan.get_availability(request.user)
+        if remaining != -1 and remaining <= 0:
+            return Response(
+                {'error': f'Monthly limit reached ({plan.checks_per_month} checks). Upgrade your plan.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Create submission only after the selected files and plan are valid.
+        submission = Submission.objects.create(workspace=ws, user=request.user)
+        submission.sources.set(sources)
+        submission.documents.set(documents)
 
         # UC-4 Step 3: Check document types
         valid, type_msg = submission.check_doc_type()
@@ -90,3 +118,22 @@ class SubmissionHistoryView(generics.ListAPIView):
             'document_results__matched_sources__source',
             'document_results__document',
         ).order_by('-created_at')
+
+
+class SubmissionDetailView(generics.RetrieveAPIView):
+    """
+    GET /api/submissions/{id}/
+    Returns one exact submission for the current user, including document results.
+    """
+    serializer_class = SubmissionHistorySerializer
+    permission_classes = [IsAuthenticated, IsActiveUser]
+
+    def get_queryset(self):
+        return Submission.objects.filter(
+            user=self.request.user
+        ).select_related('workspace').prefetch_related(
+            'document_results__matched_sources__source',
+            'document_results__document',
+            'sources',
+            'documents',
+        )

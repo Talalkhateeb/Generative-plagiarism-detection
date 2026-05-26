@@ -16,9 +16,9 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.db import models
 
 
-# ── Base Manager — used for AUTH (must see ALL roles) ─────────────────────────
+# Base Manager — used for AUTH (must see ALL roles) 
 
-class AccountManager(BaseUserManager):
+class AccountManager(BaseUserManager): 
     """
     Default manager — no role filter.
     Django's authentication backend uses this to look up users by email.
@@ -45,8 +45,7 @@ class AccountManager(BaseUserManager):
         return self.create_user(email, name, password, **extra)
 
 
-# ── Role-filtered managers (for querying, NOT for auth) ───────────────────────
-
+# Role-filtered managers (for querying, NOT for auth) 
 class UserRoleManager(AccountManager):
     """Use this when you want ONLY users: User.role_objects.all()"""
     def get_queryset(self):
@@ -59,8 +58,7 @@ class AdminRoleManager(AccountManager):
         return super().get_queryset().filter(role='admin')
 
 
-# ── Account / User model (one DB table) ───────────────────────────────────────
-
+# Account / User model (one DB table) 
 class User(AbstractBaseUser, PermissionsMixin):
     """
     Main auth model — named 'User' because AUTH_USER_MODEL = 'accounts.User'
@@ -129,8 +127,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 Account = User
 
 
-# ── Admin proxy model ─────────────────────────────────────────────────────────
-
+# Admin proxy model 
 class Admin(User):
     """
     Class Diagram: admin(-plan p, -account a) — sibling of User, both inherit Account.
@@ -150,8 +147,7 @@ class Admin(User):
         )
 
 
-# ── OTP Verification ──────────────────────────────────────────────────────────
-
+# OTP Verification 
 class OTPVerification(models.Model):
     """
     Stores 6-digit OTP codes for email verification during signup.

@@ -84,6 +84,6 @@ class Submission(models.Model):
         """Queue the submission for real AI analysis."""
         from apps.results.tasks import analyze_submission
 
-        result = analyze_submission.delay(self.id)
+        result = analyze_submission.delay(self.id) # async task via RabbitMQ
         self.task_id = result.id
         self.save(update_fields=['task_id'])

@@ -176,6 +176,32 @@ def test_submit_endpoint_rejects_too_few_sources(auth_client, workspace, source_
 
 
 @pytest.mark.django_db
+def test_submit_endpoint_rejects_sources_outside_workspace(
+    auth_client,
+    workspace,
+    other_workspace,
+    source_one,
+    document_one,
+):
+    other_source = other_workspace.sources.create(
+        file_key="sources/other/source.pdf",
+        name="other-source.pdf",
+        size=1024,
+        ext="PDF",
+    )
+
+    response = auth_client.post(
+        f"/api/workspaces/{workspace.id}/submit/",
+        {"source_ids": [source_one.id, other_source.id], "document_ids": [document_one.id]},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.data["error"] == "One or more selected sources were not found in this workspace."
+    assert not Submission.objects.filter(workspace=workspace).exists()
+
+
+@pytest.mark.django_db
 def test_submit_endpoint_creates_submission_and_updates_workspace(
     auth_client,
     workspace,
@@ -213,6 +239,16 @@ def test_submission_history_returns_only_current_users_submissions(
 
     assert response.status_code == status.HTTP_200_OK
     assert [item["id"] for item in response.data["results"]] == [submission.id]
+
+
+@pytest.mark.django_db
+def test_submission_detail_returns_exact_current_user_submission(auth_client, completed_submission):
+    response = auth_client.get(f"/api/submissions/{completed_submission.id}/")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["id"] == completed_submission.id
+    assert response.data["workspace_id"] == completed_submission.workspace.id
+    assert response.data["document_results"][0]["document_name"] == "document-one.pdf"
 
 
 @pytest.mark.django_db
