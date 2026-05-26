@@ -5,6 +5,7 @@ import requests
 from pipeline.extractor import extract_text_from_bytes
 from pipeline.chunker import chunk_document
 from pipeline.encoder import encode_chunks
+from pipeline.reranker import rerank
 from qdrant_store import upsert_chunks, is_document_indexed
 from retriever import retrieve
 
@@ -49,6 +50,8 @@ def run_analysis(req: AnalyzeRequest):
 
     # Step 3: retrieve — returns [(doc_id, score), ...] sorted descending
     results = retrieve(workspace_id, doc_text, source_texts=source_texts, top_k=None)
+    if results:
+        results = rerank(results, doc_text, source_texts)
 
     # Step 4: format result
     top_score = round(results[0][1] * 100, 1) if results else 0.0

@@ -1,10 +1,10 @@
 from collections import defaultdict
-from pipeline.chunker import chunk_document
 from pipeline.encoder import encode_chunks
 from qdrant_store import search
 from rank_bm25 import BM25Okapi
+from pipeline.cleaner import clean_text
 
-AGGREGATION_METHODS = ("max", "mean")
+AGGREGATION_METHODS = ("max",)
 ALPHA = 0.57  # weight for dense scores; (1 - ALPHA) for BM25
 
 
@@ -24,8 +24,7 @@ def aggregate_chunk_scores(
 
     if method == "max":
         return {doc_id: max(s) for doc_id, s in scores.items()}
-    elif method == "mean":
-        return {doc_id: sum(s) / len(s) for doc_id, s in scores.items()}
+
 
 
 def min_max_normalize(doc_scores: dict) -> dict:
@@ -75,8 +74,6 @@ def retrieve(
     workspace_id,
     query_text,
     top_k: int | None = None,
-    aggregation="mean",
-    chunk_pool=100,
     source_texts: dict[str, str] | None = None,
 ) -> list[tuple[str, float]]:
     """
@@ -86,37 +83,25 @@ def retrieve(
         workspace_id:  Qdrant collection to search in
         query_text:    raw query text (will be chunked and encoded internally)
         top_k:         how many documents to return (None = return all)
-        aggregation:   score aggregation method — "max" or "mean"
-        chunk_pool:    how many chunks to fetch per query chunk before aggregating
         source_texts:  optional dict {doc_id: text} — if provided, BM25 is run and fused with dense
 
     Returns:
         list of (doc_id, score) sorted by score descending
     """
-    # Step 1: chunk the query
-    query_chunks = chunk_document(doc_id="query", text=query_text)
+    query_text = clean_text(query_text)
+    encoded = encode_chunks([("query", query_text)])
+    _, _, query_embedding = encoded[0]
 
-    # Step 2: encode all query chunks in one batch
-    encoded_query_chunks = encode_chunks(query_chunks)
+    chunk_results = search(workspace_id, query_embedding, top_k=1000)
+    doc_scores = aggregate_chunk_scores(chunk_results, method="max")
 
-    # Step 3: for each query chunk, search Qdrant and pool all results
-    all_chunk_results = []
-    for _, _, query_embedding in encoded_query_chunks:
-        results = search(workspace_id, query_embedding, top_k=chunk_pool)
-        all_chunk_results.extend(results)
-
-    # Step 4: collapse to one score per document
-    doc_scores = aggregate_chunk_scores(all_chunk_results, method=aggregation)
-
-    # Step 5: optionally fuse with BM25
     if source_texts:
-        bm25_scores = run_bm25(source_texts, query_text)
+        clean_sources = {k: clean_text(v) for k, v in source_texts.items()}
+        bm25_scores = run_bm25(clean_sources, query_text)
         doc_scores = fuse(doc_scores, bm25_scores)
 
-    # Step 6: sort documents by score descending
     ranked = sorted(doc_scores.items(), key=lambda x: x[1], reverse=True)
 
-    # Step 7: optionally truncate
     if top_k is not None:
         ranked = ranked[:top_k]
 

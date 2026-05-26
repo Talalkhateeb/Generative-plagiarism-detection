@@ -1,4 +1,6 @@
 from transformers import AutoTokenizer
+from pipeline.cleaner import clean_text
+
 
 MODEL_NAME  = "BAAI/bge-m3"
 WINDOW_SIZE = 4096   # tokens per chunk
@@ -8,10 +10,12 @@ tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
 def chunk_document(doc_id: str, text: str) -> list[tuple[str, str]]:
     """
+    Calls cleaner to apply cleaning transformations on the text.
     Splits a document into overlapping token-based chunks.
     Window=4096 tokens, stride=3687 tokens (~10% overlap).
     Returns list of (doc_id, chunk_text) tuples.
     """
+    text = clean_text(text)
     token_ids = tokenizer.encode(text, add_special_tokens=False)
 
     if len(token_ids) <= WINDOW_SIZE:
