@@ -16,9 +16,7 @@ htmlcov/
 dist/
 build/
 *.log
-GPD_back/tests/
-GPD_back/conftest.py
-GPD_back/pytest.ini
+
 
 
 # Environment and secrets
@@ -50,8 +48,6 @@ qdrant_storage/
 node_modules/
 GPD_front/.vite/
 GPD_front/dist/
-GPD_front/test-results/
-GPD_front/tests/
 GPD_front/playwright-report/
 .cache/
 *.local
