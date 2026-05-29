@@ -23,14 +23,22 @@ from .serializers import (
 from .permissions import IsAdminRole, IsActiveUser
 from .serializers import (
     SendOTPSerializer, VerifyOTPAndRegisterSerializer,
+<<<<<<< HEAD
     ResendOTPSerializer,   # ← add this
+=======
+    ResendOTPSerializer,  
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
     UserProfileSerializer, UpdateProfileSerializer,
     ChangePasswordSerializer, AdminAccountSerializer,
 )
 
 
+<<<<<<< HEAD
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+=======
+# Helpers 
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 def _build_token_response(account, http_status=status.HTTP_200_OK):
     """Build the standard JWT response dict returned after login/register."""
     refresh = RefreshToken.for_user(account)
@@ -52,8 +60,12 @@ def _build_token_response(account, http_status=status.HTTP_200_OK):
     }, status=http_status)
 
 
+<<<<<<< HEAD
 # ── Custom JWT: add role/name/email to token claims ───────────────────────────
 
+=======
+# Custom JWT: add role/name/email to token claims 
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 class GPDTokenObtainSerializer(TokenObtainPairSerializer):
     """UC-1: Log In — adds role/name to JWT payload."""
 
@@ -113,8 +125,12 @@ class LoginView(TokenObtainPairView):
         # Step 2: proceed with normal simplejwt flow
         return super().post(request, *args, **kwargs)
 
+<<<<<<< HEAD
 # ── Registration — 2-step OTP flow ────────────────────────────────────────────
 
+=======
+# Registration — 2-step OTP flow
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 class SendOTPView(APIView):
     """
     POST /api/auth/register/send-otp/
@@ -177,8 +193,13 @@ class ResendOTPView(APIView):
             )
         email = serializer.validated_data['email']
         return Response({'message': f'New verification code sent to {email}.'})
+<<<<<<< HEAD
 # ── Logout ────────────────────────────────────────────────────────────────────
 
+=======
+     
+# Logout
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 class LogoutView(APIView):
     """POST /api/auth/logout/ — blacklist refresh token."""
     permission_classes = [IsAuthenticated]
@@ -192,8 +213,12 @@ class LogoutView(APIView):
             return Response({'error': 'Invalid token.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
+<<<<<<< HEAD
 # ── Profile ───────────────────────────────────────────────────────────────────
 
+=======
+# Profile
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 class MeView(generics.RetrieveUpdateAPIView):
     """
     GET   /api/auth/me/  → current user profile
@@ -247,8 +272,12 @@ class DeleteAccountView(APIView):
         return Response({'message': 'Account deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
 
 
+<<<<<<< HEAD
 # ── Upgrade Plan ──────────────────────────────────────────────────────────────
 
+=======
+# Upgrade Plan
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 class UpgradePlanView(APIView):
     """
     PATCH /api/auth/me/upgrade-plan/

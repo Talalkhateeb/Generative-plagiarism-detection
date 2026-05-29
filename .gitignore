@@ -8,8 +8,17 @@ pycache/
 .Python
 *.egg-info/
 .pytest_cache/
+<<<<<<< HEAD
 dist/
 build/
+=======
+.coverage
+coverage.xml
+htmlcov/
+dist/
+build/
+*.log
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 
 # Environment and secrets
 .env
@@ -39,6 +48,12 @@ qdrant_storage/
 # Node / frontend
 node_modules/
 GPD_front/.vite/
+<<<<<<< HEAD
+=======
+GPD_front/dist/
+GPD_front/test-results/
+GPD_front/playwright-report/
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 .cache/
 *.local
 *.tsbuildinfo

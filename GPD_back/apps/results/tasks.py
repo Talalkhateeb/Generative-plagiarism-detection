@@ -11,6 +11,10 @@ New flow with Storage Microservice:
   6. Celery polls Storage Service GET /result until ready
   7. Celery saves result to SQL DB
 """
+<<<<<<< HEAD
+=======
+
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 import logging
 import requests
 from celery import shared_task
@@ -61,10 +65,14 @@ def _send_to_ai(submission_id: int, document, sources) -> bool:
     return True
 
 
+<<<<<<< HEAD
 
 
 
 @shared_task(bind=True, max_retries=3)
+=======
+@shared_task(bind=True, max_retries=3) 
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 def analyze_submission(self, submission_id: int):
     """
     UC-5: Analyze Submission using AI Model.

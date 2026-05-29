@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 qdrant-client
 sentence-transformers
 nltk
@@ -7,3 +8,10 @@ pdfplumber
 python-docx
 python-multipart
 requests
+=======
+# Convenience aggregate for installing all Python services from the repo root.
+# Individual service deployments should prefer their own requirements file.
+-r GPD_back/requirements.txt
+-r AI/requirements.txt
+-r storage_service/requirements.txt
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0

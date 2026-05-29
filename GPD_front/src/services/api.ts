@@ -8,14 +8,22 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+<<<<<<< HEAD
 // ── Attach JWT token ──────────────────────────────────────────────────────────
+=======
+// Attach JWT token 
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 api.interceptors.request.use(cfg => {
   const token = localStorage.getItem('access_token')
   if (token) cfg.headers.Authorization = `Bearer ${token}` 
   return cfg
 })
 
+<<<<<<< HEAD
 // ── Auto-refresh on 401 ───────────────────────────────────────────────────────
+=======
+// Auto-refresh on 401 
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 api.interceptors.response.use(
   r => r,
   async (err: AxiosError) => {
@@ -42,7 +50,11 @@ api.interceptors.response.use(
   }
 )
 
+<<<<<<< HEAD
 // ── Auth ──────────────────────────────────────────────────────────────────────
+=======
+// Auth 
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 export const authAPI = {
   login: (email: string, password: string) =>
     api.post('/auth/login/', { email, password }),
@@ -72,7 +84,11 @@ export const authAPI = {
     api.patch('/auth/me/upgrade-plan/', { plan_id }),
 }
 
+<<<<<<< HEAD
 // ── Plans ─────────────────────────────────────────────────────────────────────
+=======
+// Plans 
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 export const plansAPI = {
   list:   () => api.get('/plans/'),
   create: (data: object) => api.post('/plans/', data),
@@ -80,7 +96,11 @@ export const plansAPI = {
   delete: (id: number) => api.delete(`/plans/${id}/`),
 }
 
+<<<<<<< HEAD
 // ── Workspaces ────────────────────────────────────────────────────────────────
+=======
+// Workspaces 
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 export const workspacesAPI = {
   list:   () => api.get('/workspaces/'),
   create: (name: string) => api.post('/workspaces/', { name }),
@@ -110,12 +130,22 @@ export const workspacesAPI = {
   report:  (id: number) => api.get(`/workspaces/${id}/report/`),
 }
 
+<<<<<<< HEAD
 // ── Submissions ───────────────────────────────────────────────────────────────
 export const submissionsAPI = {
   history: () => api.get('/submissions/history/'),
 }
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
+=======
+// Submissions 
+export const submissionsAPI = {
+  history: () => api.get('/submissions/history/'),
+  get:     (id: number) => api.get(`/submissions/${id}/`),
+}
+
+// Admin
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 export const adminAPI = {
   listAccounts:  (params?: { search?: string }) => api.get('/admin/accounts/', { params }),
   getAccount:    (id: number) => api.get(`/admin/accounts/${id}/`),

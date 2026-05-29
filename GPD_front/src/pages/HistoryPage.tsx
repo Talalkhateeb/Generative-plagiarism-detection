@@ -264,7 +264,16 @@ export default function HistoryPage() {
             <SubmissionRow
               key={item.id}
               h={item}
+<<<<<<< HEAD
               onOpen={() => item.workspace_id && navigate(`/workspaces/${item.workspace_id}`)}
+=======
+              onOpen={() => item.workspace_id && navigate(`/workspaces/${item.workspace_id}`, {
+                state: {
+                  selectedSubmissionId: item.id,
+                  selectedSubmissionResults: item.document_results ?? [],
+                },
+              })}
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
             />
           ))}
         </Card>

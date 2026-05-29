@@ -1,9 +1,19 @@
 qdrant-client
 sentence-transformers
+<<<<<<< HEAD
 nltk
+=======
+transformers
+torch
+rank-bm25
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 fastapi
 uvicorn
 pdfplumber
 python-docx
 python-multipart
+<<<<<<< HEAD
 requests
+=======
+requests
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0

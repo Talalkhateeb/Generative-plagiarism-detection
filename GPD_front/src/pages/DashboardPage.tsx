@@ -50,9 +50,14 @@ export default function DashboardPage() {
             plans:  plans.length,
           })
         })
+<<<<<<< HEAD
         .catch(() => {}) // سيرفر مو شغّال — تبقى أصفار
     } else {
       // User: جيب plan info و checks used و history
+=======
+        .catch(() => {}) 
+    } else {
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
       Promise.all([submissionsAPI.history(), plansAPI.list()])
         .then(([histRes, plRes]) => {
           const history = histRes.data.results ?? histRes.data
@@ -169,7 +174,10 @@ export default function DashboardPage() {
           ))}
         </div>
       </div>
+<<<<<<< HEAD
       {/* Plan info — يوزر جديد يشوف 0 استهلاك */}
+=======
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
       <Card className="p-5 flex items-center gap-4">
         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
           <Shield size={18} className="text-primary"/>

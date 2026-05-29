@@ -7,7 +7,11 @@ import {
 import { Card, Badge, Button, FileRow, DropZone, Alert, ScoreRing } from '@/app/components/ui'
 import { useWorkspaces } from '@/app/context/WorkspaceContext'
 import type { Source, Document, DocumentResult, Submission } from '@/types'
+<<<<<<< HEAD
 import { workspacesAPI } from '@/services/api'
+=======
+import { submissionsAPI, workspacesAPI } from '@/services/api'
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 
 const ALLOWED_EXTS = ['pdf', 'docx', 'doc', 'txt']
 const STEPS = [
@@ -133,6 +137,11 @@ export default function WorkspaceDetailPage() {
   const [loading,     setLoading]     = useState(true)
 
   const wsId = Number(id)
+<<<<<<< HEAD
+=======
+  const selectedSubmissionId = Number(location.state?.selectedSubmissionId)
+  const selectedSubmissionResults = location.state?.selectedSubmissionResults as DocumentResult[] | undefined
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 
   useEffect(() => {
     // Guard against NaN
@@ -175,9 +184,35 @@ export default function WorkspaceDetailPage() {
   // Auto-load last completed result on page entry
   useEffect(() => {
     if (loading || wsId === 0 || results) return
+<<<<<<< HEAD
     const lastCompleted = submissions.find((s: any) => s.status === 'completed' && s.document_results?.length > 0)
     if (lastCompleted) setResults(lastCompleted.document_results)
   }, [loading, submissions.length])
+=======
+    if (!Number.isNaN(selectedSubmissionId) && selectedSubmissionId > 0) {
+      const selected = submissions.find((s: any) => Number(s.id) === selectedSubmissionId)
+      const selectedResults = selected?.document_results ?? []
+      if (selectedResults.length > 0) {
+        setResults(selectedResults)
+        return
+      }
+      if (selectedSubmissionResults?.length) {
+        setResults(selectedSubmissionResults)
+        return
+      }
+      submissionsAPI.get(selectedSubmissionId)
+        .then((res) => {
+          if (res.data?.document_results?.length > 0) setResults(res.data.document_results)
+        })
+        .catch(() => {
+          setWarning('Could not load that submission. Showing this workspace instead.')
+        })
+      return
+    }
+    const lastCompleted = submissions.find((s: any) => s.status === 'completed' && s.document_results?.length > 0)
+    if (lastCompleted) setResults(lastCompleted.document_results)
+  }, [loading, submissions.length, selectedSubmissionId])
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 
   // Redirect if no valid id
   if (!id || id === 'undefined' || isNaN(wsId)) return (

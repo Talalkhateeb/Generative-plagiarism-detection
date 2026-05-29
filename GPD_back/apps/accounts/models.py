@@ -16,9 +16,15 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.db import models
 
 
+<<<<<<< HEAD
 # ── Base Manager — used for AUTH (must see ALL roles) ─────────────────────────
 
 class AccountManager(BaseUserManager):
+=======
+# Base Manager — used for AUTH (must see ALL roles) 
+
+class AccountManager(BaseUserManager): 
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
     """
     Default manager — no role filter.
     Django's authentication backend uses this to look up users by email.
@@ -45,8 +51,12 @@ class AccountManager(BaseUserManager):
         return self.create_user(email, name, password, **extra)
 
 
+<<<<<<< HEAD
 # ── Role-filtered managers (for querying, NOT for auth) ───────────────────────
 
+=======
+# Role-filtered managers (for querying, NOT for auth) 
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 class UserRoleManager(AccountManager):
     """Use this when you want ONLY users: User.role_objects.all()"""
     def get_queryset(self):
@@ -59,8 +69,12 @@ class AdminRoleManager(AccountManager):
         return super().get_queryset().filter(role='admin')
 
 
+<<<<<<< HEAD
 # ── Account / User model (one DB table) ───────────────────────────────────────
 
+=======
+# Account / User model (one DB table) 
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 class User(AbstractBaseUser, PermissionsMixin):
     """
     Main auth model — named 'User' because AUTH_USER_MODEL = 'accounts.User'
@@ -129,8 +143,12 @@ class User(AbstractBaseUser, PermissionsMixin):
 Account = User
 
 
+<<<<<<< HEAD
 # ── Admin proxy model ─────────────────────────────────────────────────────────
 
+=======
+# Admin proxy model 
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 class Admin(User):
     """
     Class Diagram: admin(-plan p, -account a) — sibling of User, both inherit Account.
@@ -150,8 +168,12 @@ class Admin(User):
         )
 
 
+<<<<<<< HEAD
 # ── OTP Verification ──────────────────────────────────────────────────────────
 
+=======
+# OTP Verification 
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 class OTPVerification(models.Model):
     """
     Stores 6-digit OTP codes for email verification during signup.
