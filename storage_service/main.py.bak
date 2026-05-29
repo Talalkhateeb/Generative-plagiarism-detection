@@ -32,7 +32,11 @@ from pathlib import Path
 load_dotenv(Path(__file__).parent / ".env")
 app = FastAPI(title="GPD Storage Service", version="1.0.0")
 
+<<<<<<< HEAD
+# ── MinIO client ──────────────────────────────────────────────────────────────
+=======
 # MinIO client 
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 MINIO_ENDPOINT   = os.getenv("MINIO_ENDPOINT",   "minio.gpdetect.com")
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "admin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "password123")

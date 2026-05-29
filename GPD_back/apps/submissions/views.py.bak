@@ -30,6 +30,10 @@ class SubmitView(APIView):
     def post(self, request, pk):
         ws = get_object_or_404(Workspace, pk=pk, user=request.user)
 
+<<<<<<< HEAD
+        source_ids   = request.data.get('source_ids', [])
+        document_ids = request.data.get('document_ids', [])
+=======
         try:
             source_ids = {int(item) for item in request.data.get('source_ids', [])}
             document_ids = {int(item) for item in request.data.get('document_ids', [])}
@@ -38,6 +42,7 @@ class SubmitView(APIView):
                 {'error': 'Source and document IDs must be valid integers.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 
         if not source_ids or len(source_ids) < 2:
             return Response(
@@ -50,6 +55,18 @@ class SubmitView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+<<<<<<< HEAD
+        # Create submission
+        submission = Submission.objects.create(workspace=ws, user=request.user)
+        submission.sources.set(ws.sources.filter(id__in=source_ids))
+        submission.documents.set(ws.documents.filter(id__in=document_ids))
+
+        # UC-4 Step 2: Check plan limitation
+        allowed, plan_msg = submission.check_plan()
+        if not allowed:
+            submission.delete()
+            return Response({'error': plan_msg}, status=status.HTTP_403_FORBIDDEN)
+=======
         sources = list(ws.sources.filter(id__in=source_ids))
         documents = list(ws.documents.filter(id__in=document_ids))
 
@@ -82,6 +99,7 @@ class SubmitView(APIView):
         submission = Submission.objects.create(workspace=ws, user=request.user)
         submission.sources.set(sources)
         submission.documents.set(documents)
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 
         # UC-4 Step 3: Check document types
         valid, type_msg = submission.check_doc_type()
@@ -118,6 +136,8 @@ class SubmissionHistoryView(generics.ListAPIView):
             'document_results__matched_sources__source',
             'document_results__document',
         ).order_by('-created_at')
+<<<<<<< HEAD
+=======
 
 
 class SubmissionDetailView(generics.RetrieveAPIView):
@@ -137,3 +157,4 @@ class SubmissionDetailView(generics.RetrieveAPIView):
             'sources',
             'documents',
         )
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0

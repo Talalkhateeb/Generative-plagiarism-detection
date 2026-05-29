@@ -145,7 +145,12 @@ class ResendOTPSerializer(serializers.Serializer):
         )
         return code
 
+<<<<<<< HEAD
+# ── Profile serializers ───────────────────────────────────────────────────────
+
+=======
 # Profile serializers 
+>>>>>>> 1cd9214f7b497c4ad019fd155e3b385cffbdc6f0
 class UserProfileSerializer(serializers.ModelSerializer):
     plan        = serializers.SerializerMethodField()
     date_joined = serializers.DateTimeField(source='created_at', read_only=True)
