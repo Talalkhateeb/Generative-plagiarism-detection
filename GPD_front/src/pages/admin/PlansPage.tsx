@@ -19,7 +19,7 @@ export default function PlansPage() {
   }, [])
 
   const empty: Partial<Plan> = {
-    name: '', price: 0, checks: 10, max_sources: 5, max_docs: 3,
+    name: '', price: 0, checks_per_month: 10, max_sources: 5, max_documents: 3,
     allowed_formats: ['pdf','docx','txt']
   }
 
@@ -38,9 +38,9 @@ export default function PlansPage() {
       const payload = {
         name:             editing!.name,
         price:            editing!.price,
-        checks_per_month: editing!.checks,   // API يستخدم checks_per_month
+        checks_per_month: editing!.checks_per_month,
         max_sources:      editing!.max_sources,
-        max_documents:    editing!.max_docs,  // API يستخدم max_documents
+        max_documents:    editing!.max_documents,
         allowed_formats:  editing!.allowed_formats ?? ['pdf','docx','txt'],
         is_active:        true,
       }
@@ -102,9 +102,9 @@ export default function PlansPage() {
                     id:              p.id,
                     name:            p.name,
                     price:           p.price,
-                    checks:          p.checks_per_month ?? p.checks,
+                    checks_per_month: p.checks_per_month,
                     max_sources:     p.max_sources,
-                    max_docs:        p.max_documents ?? p.max_docs,
+                    max_documents:   p.max_documents,
                     allowed_formats: p.allowed_formats,
                   })
                   setIsNew(false)
@@ -123,9 +123,9 @@ export default function PlansPage() {
             <p className="font-bold text-lg">{p.name}</p>
             <p className="text-3xl font-bold font-mono text-primary mt-1">${p.price}<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
             <div className="mt-4 space-y-1.5 text-sm text-muted-foreground">
-              <p>• {(p.checks_per_month ?? p.checks) === -1 ? 'Unlimited checks' : `${p.checks_per_month ?? p.checks} checks/month`}</p>
+              <p>• {p.checks_per_month === -1 ? 'Unlimited checks' : `${p.checks_per_month} checks/month`}</p>
               <p>• {p.max_sources === -1 ? 'Unlimited sources' : `Up to ${p.max_sources} sources`}</p>
-              <p>• {(p.max_documents ?? p.max_docs) === -1 ? 'Unlimited documents' : `Up to ${p.max_documents ?? p.max_docs} documents`}</p>
+              <p>• {p.max_documents === -1 ? 'Unlimited documents' : `Up to ${p.max_documents} documents`}</p>
               <p>• Formats: {(p.allowed_formats ?? []).join(', ').toUpperCase()}</p>
             </div>
           </Card>
@@ -139,9 +139,9 @@ export default function PlansPage() {
             {errors.api && <Alert variant="error">{errors.api}</Alert>}
             <Input label="Plan Name" value={editing.name || ''} onChange={e => setEditing(p => ({ ...p!, name: e.target.value }))} error={errors.name}/>
             <Input label="Price ($/mo)" type="number" value={editing.price ?? ''} onChange={e => setEditing(p => ({ ...p!, price: Number(e.target.value) }))} error={errors.price}/>
-            <Input label="Checks/month (-1 = unlimited)" type="number" value={editing.checks ?? ''} onChange={e => setEditing(p => ({ ...p!, checks: Number(e.target.value) }))}/>
+            <Input label="Checks/month (-1 = unlimited)" type="number" value={editing.checks_per_month ?? ''} onChange={e => setEditing(p => ({ ...p!, checks_per_month: Number(e.target.value) }))}/>
             <Input label="Max Sources (-1 = unlimited)" type="number" value={editing.max_sources ?? ''} onChange={e => setEditing(p => ({ ...p!, max_sources: Number(e.target.value) }))}/>
-            <Input label="Max Documents (-1 = unlimited)" type="number" value={editing.max_docs ?? ''} onChange={e => setEditing(p => ({ ...p!, max_docs: Number(e.target.value) }))}/>
+            <Input label="Max Documents (-1 = unlimited)" type="number" value={editing.max_documents ?? ''} onChange={e => setEditing(p => ({ ...p!, max_documents: Number(e.target.value) }))}/>
             <div className="flex gap-2 justify-end pt-2">
               <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
               <Button onClick={save} disabled={loading}>{loading ? 'Saving...' : 'Save'}</Button>

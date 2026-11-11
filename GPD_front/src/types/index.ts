@@ -19,6 +19,19 @@ export interface HighlightSegment {
   source?:   string
 }
 
+export interface AnalysisBreakdownItem {
+  source: string
+  match: number
+  color: string
+}
+
+export interface AnalysisResult {
+  overall_score: number
+  original_percentage: number
+  breakdown: AnalysisBreakdownItem[]
+  highlighted_segments: HighlightSegment[]
+}
+
 /** One document's plagiarism result */
 export interface DocumentResult {
   id:                  number
@@ -60,4 +73,5 @@ export interface Workspace {
 export interface Plan {
   id: number; name: string; price: number;
   checks_per_month: number; max_sources: number; max_documents: number;
+  allowed_formats?: string[];
 }
