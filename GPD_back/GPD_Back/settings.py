@@ -74,39 +74,30 @@ WSGI_APPLICATION = 'GPD_Back.wsgi.application'
 
 # ── Database ─────────────────────────────────────────────────────────────────
 _is_ci = os.environ.get('CI', 'false').lower() == 'true'
-DATABASES = {
-    # ── SQLite (development) ──────────────────────────────────
-    # 'default': {
-    #     'ENGINE': 'django.db.backends.sqlite3',
-    #     'NAME': BASE_DIR / 'db.sqlite3',
-    # }
+_db_engine = (os.environ.get('DB_ENGINE') or '').strip().lower()
 
-    # ── SQL Server (production) ───────────────────────────────
-    # pip install mssql-django
-    'default': {
-        'ENGINE':   os.environ.get('DB_ENGINE', 'mssql'),
-        'NAME':     os.environ.get('DB_NAME', 'GPD'),
-        'HOST':     os.environ.get('DB_HOST', r'DESKTOP-OJ5AKU2\SQLEXPRESS'),
-        'PORT':     os.environ.get('DB_PORT', ''),
-        'USER':     os.environ.get('DB_USER', ''),
-        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'OPTIONS': {
-            'driver': os.environ.get('DB_ODBC_DRIVER', 'ODBC Driver 18 for SQL Server'),
-            'extra_params': 'TrustServerCertificate=yes;Encrypt=yes;' if _is_ci else '',
-        },
+if _db_engine and _db_engine != 'sqlite':
+    DATABASES = {
+        'default': {
+            'ENGINE':   'mssql',
+            'NAME':     os.environ.get('DB_NAME', 'GPD'),
+            'HOST':     os.environ.get('DB_HOST', r'DESKTOP-OJ5AKU2\SQLEXPRESS'),
+            'PORT':     os.environ.get('DB_PORT', ''),
+            'USER':     os.environ.get('DB_USER', ''),
+            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+            'OPTIONS': {
+                'driver': os.environ.get('DB_ODBC_DRIVER', 'ODBC Driver 18 for SQL Server'),
+                'extra_params': 'TrustServerCertificate=yes;Encrypt=yes;' if _is_ci else '',
+            },
+        }
     }
-
-    # ── PostgreSQL (alternative) ──────────────────────────────
-    # pip install psycopg2-binary
-    # 'default': {
-    #     'ENGINE': 'django.db.backends.postgresql',
-    #     'NAME': os.environ.get('DB_NAME', 'GPD_db'),
-    #     'USER': os.environ.get('DB_USER', 'GPD_user'),
-    #     'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-    #     'HOST': os.environ.get('DB_HOST', 'localhost'),
-    #     'PORT': os.environ.get('DB_PORT', '5432'),
-    # }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 # ── Custom User Model ─────────────────────────────────────────────────────────
 AUTH_USER_MODEL = 'accounts.User'
